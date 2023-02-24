@@ -24,6 +24,9 @@ website/node_modules
 *.iml
 *.test
 *.iml
+.terraform.lock.hcl
+main.tf
+vendor
 
 website/vendor
 

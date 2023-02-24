@@ -1,8 +1,9 @@
-module github.com/hashicorp/terraform-provider-scaffolding-framework
+module github.com/keyfactor-pub/terraform-provider-ejbca
 
 go 1.18
 
 require (
+	github.com/Keyfactor/ejbca-go-client-sdk v0.1.1
 	github.com/hashicorp/terraform-plugin-docs v0.13.0
 	github.com/hashicorp/terraform-plugin-framework v1.1.1
 	github.com/hashicorp/terraform-plugin-go v0.14.3
