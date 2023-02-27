@@ -101,7 +101,8 @@ func (p *EjbcaProvider) Resources(ctx context.Context) []func() resource.Resourc
 
 func (p *EjbcaProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
     return []func() datasource.DataSource{
-        NewExampleDataSource,
+        NewEndEntityProfileDataSource,
+        NewAuthorizedEndEntityProfilesDataSource,
     }
 }
 
