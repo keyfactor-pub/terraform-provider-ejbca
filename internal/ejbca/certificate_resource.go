@@ -10,6 +10,8 @@ import (
     "github.com/hashicorp/terraform-plugin-framework/path"
     "github.com/hashicorp/terraform-plugin-framework/resource"
     "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+    "github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+    "github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
     "github.com/hashicorp/terraform-plugin-framework/types"
     "github.com/hashicorp/terraform-plugin-log/tflog"
     "time"
@@ -53,32 +55,50 @@ func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaReq
             "certificate_signing_request": schema.StringAttribute{
                 Required:    true,
                 Description: "PKCS#10 Certificate Signing Request",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
             "certificate_profile_name": schema.StringAttribute{
                 Required:    true,
                 Description: "EJBCA Certificate Profile Name to use for the certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
             "end_entity_profile_name": schema.StringAttribute{
                 Required:    true,
                 Description: "EJBCA End Entity Profile Name to use for the certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
             "certificate_authority_name": schema.StringAttribute{
                 Required:    true,
                 Description: "EJBCA Certificate Authority Name used to sign the certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
             "end_entity_name": schema.StringAttribute{
                 Required:    true,
                 Description: "Name of the EJBCA entity to create for the certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
             "end_entity_password": schema.StringAttribute{
                 Required:    true,
                 Description: "Password of the EJBCA entity",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
             },
+
             "id": schema.StringAttribute{
                 Computed:    true,
                 Description: "Serial number of the certificate",
             },
-
             "certificate": schema.StringAttribute{
                 Computed:    true,
                 Description: "PEM encoded X509v3 certificate and chain",
