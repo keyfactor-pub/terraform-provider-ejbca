@@ -8,8 +8,6 @@ import (
     "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
     "github.com/hashicorp/terraform-plugin-framework/types"
     "github.com/hashicorp/terraform-plugin-log/tflog"
-    "math/rand"
-    "time"
 )
 
 var _ datasource.DataSource = &AuthorizedEndEntityProfilesDataSource{}
@@ -29,8 +27,8 @@ func (d *AuthorizedEndEntityProfilesDataSource) Metadata(ctx context.Context, re
 
 // AuthorizedEndEntityProfilesDataSourceModel describes the data source data model.
 type AuthorizedEndEntityProfilesDataSourceModel struct {
-    AuthorizedEndEntityProfiles types.Set    `tfsdk:"authorized_end_entity_profiles"`
-    Id                          types.String `tfsdk:"id"`
+    AuthorizedEndEntityProfiles types.Set   `tfsdk:"authorized_end_entity_profiles"`
+    Id                          types.Int64 `tfsdk:"id"`
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -43,7 +41,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Schema(ctx context.Context, req 
                 ElementType: types.StringType,
                 Computed:    true,
             },
-            "id": schema.StringAttribute{
+            "id": schema.Int64Attribute{
                 Computed:    true,
                 Description: "The ID of the data source.",
             },
@@ -82,10 +80,17 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
     // Get the list of authorized end entity profiles for the current user.
     authorizedEndEntityProfiles, _, err := d.client.V2EndentityApi.GetAuthorizedEndEntityProfiles(ctx).Execute()
     if err != nil {
-        tflog.Error(ctx, "Failed to get list of authorized end entity profiles: %s"+err.Error())
+        tflog.Error(ctx, "Failed to get list of authorized end entity profiles: "+err.Error())
+
+        detail := ""
+        bodyError, ok := err.(*ejbca.GenericOpenAPIError)
+        if ok {
+            detail = string(bodyError.Body())
+        }
+
         resp.Diagnostics.AddError(
             "Failed to get list of authorized end entity profiles",
-            "EJBCA API returned error: "+err.Error()+" \""+string(err.(*ejbca.GenericOpenAPIError).Body())+"\"",
+            fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
         )
         return
     }
@@ -110,21 +115,10 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
         return
     }
 
-    // Set the ID of the data source as a random 10 character string.
-    state.Id = types.StringValue(generateRandomString(10))
+    state.Id = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
 
     tflog.Trace(ctx, fmt.Sprintf("Retrieved list of authorized end entity profiles."))
 
     // Save data into Terraform state
     resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-}
-
-func generateRandomString(length int) string {
-    rand.Seed(time.Now().UnixNano())
-    letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    b := make([]rune, length)
-    for i := range b {
-        b[i] = letters[rand.Intn(len(letters))]
-    }
-    return string(b)
 }

@@ -103,10 +103,17 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
     // Get the end entity profile from EJBCA
     profileData, _, err := d.client.V2EndentityApi.Profile(ctx, state.EndEntityProfileName.ValueString()).Execute()
     if err != nil {
-        tflog.Error(ctx, "Failed to retrieve data for end entity profile: %s"+err.Error())
+        tflog.Error(ctx, "Failed to retrieve data for end entity profile: "+err.Error())
+
+        detail := ""
+        bodyError, ok := err.(*ejbca.GenericOpenAPIError)
+        if ok {
+            detail = string(bodyError.Body())
+        }
+
         resp.Diagnostics.AddError(
             "Failed to retrieve data for end entity profile",
-            "EJBCA API returned error: "+err.Error()+" \""+string(err.(*ejbca.GenericOpenAPIError).Body())+"\"",
+            fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
         )
         return
     }
