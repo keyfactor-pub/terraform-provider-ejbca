@@ -31,7 +31,7 @@ func TestAccCertificateResource(t *testing.T) {
         endEntityProfile:     os.Getenv("EJBCA_END_ENTITY_PROFILE_NAME"),
         certificateProfile:   os.Getenv("EJBCA_CERTIFICATE_PROFILE_NAME"),
         certificateAuthority: os.Getenv("EJBCA_CA_NAME"),
-        endEntityName:        "ejbca_tf_testacc-" + generateRandomString(5),
+        endEntityName:        "ejbca_terraform_testacc",
         endEntityPassword:    "password",
     }
 
@@ -96,7 +96,7 @@ EOT
 func generateCSR(subject string) ([]byte, error) {
     keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
 
-    subj, err := parseSubjectDN(subject, true)
+    subj, err := parseSubjectDN(subject, false)
     if err != nil {
         return make([]byte, 0, 0), err
     }

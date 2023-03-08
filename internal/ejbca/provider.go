@@ -103,6 +103,7 @@ func (p *EjbcaProvider) DataSources(ctx context.Context) []func() datasource.Dat
     return []func() datasource.DataSource{
         NewEndEntityProfileDataSource,
         NewAuthorizedEndEntityProfilesDataSource,
+        NewCaPemDataSource,
     }
 }
 
