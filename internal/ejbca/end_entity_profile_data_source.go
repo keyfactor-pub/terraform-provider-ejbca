@@ -119,7 +119,7 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
     }
 
     // Set the subject distinguished name fields
-    set, diag := types.SetValueFrom(ctx, types.StringType, profileData.SubjectDistinguishedNameFields)
+    set, diag := types.SetValueFrom(ctx, types.StringType, removeDuplicates(profileData.SubjectDistinguishedNameFields))
     resp.Diagnostics.Append(diag...)
     state.SubjectDistinguishedNameFields = set
 
@@ -150,4 +150,18 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 
     // Save data into Terraform state
     resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func removeDuplicates(list []string) []string {
+    keys := make(map[string]bool)
+    list = []string{}
+
+    for _, entry := range list {
+        if _, value := keys[entry]; !value {
+            keys[entry] = true
+            list = append(list, entry)
+        }
+    }
+
+    return list
 }

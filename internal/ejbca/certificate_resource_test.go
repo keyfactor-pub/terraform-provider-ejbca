@@ -96,7 +96,7 @@ EOT
 func generateCSR(subject string) ([]byte, error) {
     keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
 
-    subj, err := parseSubjectDN(subject)
+    subj, err := parseSubjectDN(subject, true)
     if err != nil {
         return make([]byte, 0, 0), err
     }
@@ -117,7 +117,7 @@ func generateCSR(subject string) ([]byte, error) {
 
 // Function that turns subject string into pkix.Name
 // EG "C=US,ST=California,L=San Francisco,O=HashiCorp,OU=Engineering,CN=example.com"
-func parseSubjectDN(subject string) (pkix.Name, error) {
+func parseSubjectDN(subject string, randomizeCn bool) (pkix.Name, error) {
     var name pkix.Name
 
     // Split the subject into its individual parts
@@ -147,7 +147,11 @@ func parseSubjectDN(subject string) (pkix.Name, error) {
         case "OU":
             name.OrganizationalUnit = []string{value}
         case "CN":
-            name.CommonName = value
+            if randomizeCn {
+                value = fmt.Sprintf("%s-%s", value, generateRandomString(5))
+            } else {
+                name.CommonName = value
+            }
         default:
             // Ignore any unknown keys
         }

@@ -1,6 +1,7 @@
 package ejbca
 
 import (
+    "github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
     "math/rand"
     "os"
     "testing"
@@ -42,6 +43,12 @@ func testAccPreCheck(t *testing.T) {
     if v := os.Getenv("EJBCA_CA_NAME"); v == "" {
         t.Fatal("EJBCA_CA_NAME must be set for acceptance tests")
     }
+}
+
+func createEjbcaClient() (*ejbca.APIClient, error) {
+    configuration := ejbca.NewConfiguration()
+    configuration.Debug = true
+    return ejbca.NewAPIClient(configuration)
 }
 
 func generateRandomString(length int) string {
