@@ -19,10 +19,6 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
     "ejbca": providerserver.NewProtocol6WithError(New("test")()),
 }
 
-/*
-EJBCA_HOSTNAME=https://it-ca01.pkihosted-dev.c2company.com/ejbca/;EJBCA_CLIENT_CERT_PATH=C:\Users\hroszell\OneDrive - Keyfactor\Documents\coding\EJBCA\certs\adminHaydenRoszell.pem;TF_ACC=1;EJBCA_CERTIFICATE_SUBJECT=CN=ejbca_tf_testacc,OU=IT;EJBCA_END_ENTITY_PROFILE_NAME=haydenEndEntity;EJBCA_CERTIFICATE_PROFILE_NAME=tlsServerAuth;EJBCA_CA_NAME=ManagementCA
-*/
-
 func testAccPreCheck(t *testing.T) {
     // Check for environment variables
     if v := os.Getenv("EJBCA_HOSTNAME"); v == "" {
