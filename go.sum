@@ -1,8 +1,8 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/Keyfactor/ejbca-go-client-sdk v0.1.2 h1:xG/AD/1BPaCpQZSXhQXClRH5U2Po0NAgfV2m0tJYjeM=
-github.com/Keyfactor/ejbca-go-client-sdk v0.1.2/go.mod h1:12uc/cynQy/GEiYnYJgivFjRGpyusPvIu/vLYAscejs=
+github.com/Keyfactor/ejbca-go-client-sdk v0.1.4 h1:AE9HI/JuGmrZW1MQ1Sk4c2PKbpcondjUjpo02kKH4n4=
+github.com/Keyfactor/ejbca-go-client-sdk v0.1.4/go.mod h1:12uc/cynQy/GEiYnYJgivFjRGpyusPvIu/vLYAscejs=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=
 github.com/Masterminds/goutils v1.1.1/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
 github.com/Masterminds/semver/v3 v3.1.1 h1:hLg3sBzpNErnxhQtUy/mmLR2I9foDujNK030IGemrRc=
