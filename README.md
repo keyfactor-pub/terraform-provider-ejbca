@@ -1,5 +1,8 @@
 # Terraform Provider for Keyfactor EJBCA
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/Keyfactor/ejbca-k8s-csr-signer)](https://goreportcard.com/report/github.com/Keyfactor/ejbca-k8s-csr-signer)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+
 The Terraform provider enables management of EJBCA resources utilizing HashiCorp Terraform.
 
 ## Support for Keyfactor EJBCA Terraform Provider
@@ -10,13 +13,15 @@ The Keyfactor EJBCA Terraform Provider is open source and there is **no SLA** fo
 ___
 
 ## Requirements
+### To build
+* [Git](https://git-scm.com/)
+* [Golang](https://golang.org/) >= v1.19
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.18
-
+### To use
+* [Keyfactor EJBCA](https://www.keyfactor.com/products/ejbca-enterprise/) >= v7.7
+* [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 
 ## Installation
-
 ### From GitHub
 - Download the latest release from the [releases page](https://github.com/Keyfactor/terraform-provider-ejbca/releases)
 - Unzip the release
@@ -27,7 +32,7 @@ ___
 ### From Source (Mac OS/Linux)
 ```bash
 git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
-cd terraform-provider-keyfactor
+cd terraform-provider-ejbca
 make install
 ```
 
@@ -35,7 +40,7 @@ make install
 ```powershell
 git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
 cd terraform-provider-keyfactor
-go build -o %APPDATA%\terraform.d\plugins\keyfactor.com\keyfactor\keyfactor\1.0.3\terraform-provider-keyfactor.exe
+go build -o %APPDATA%\terraform.d\plugins\keyfactor.com\keyfactor\ejbca\1.0.3\terraform-provider-ejbca.exe
 ```
 
 ## Using the provider
@@ -44,7 +49,3 @@ go build -o %APPDATA%\terraform.d\plugins\keyfactor.com\keyfactor\keyfactor\1.0.
 * [Examples](examples)
 * [Contributing](CONTRIBUTING.md)
 * [License](LICENSE)
-
-## Contributing
-The Keyfactor EJBCA Terraform Provider is an open source project. To contribute, see the [contribution guidelines](https://github.com/Keyfactor/terraform-provider-keyfactor/blob/main/CONTRIBUTING.md).
-[Issues](../../issues) may also be reported.
