@@ -22,7 +22,7 @@ ___
 * [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 
 ## Installation
-### From GitHub
+### From GitHub (future use)
 - Download the latest release from the [releases page](https://github.com/Keyfactor/terraform-provider-ejbca/releases)
 - Unzip the release
 - Move the binary to a location in your local Terraform plugins directory (typically `$HOME/.terraform.d/plugins` or `%APPDATA%\terraform.d\plugins` on Windows)
