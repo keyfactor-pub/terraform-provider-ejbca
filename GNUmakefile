@@ -3,7 +3,6 @@ TEST?=$$(go list ./... | grep -v 'vendor')
 HOSTNAME=keyfactor.com
 GOFMT_FILES  := $$(find $(PROVIDER_DIR) -name '*.go' |grep -v vendor)
 NAMESPACE=keyfactor-pub
-WEBSITE_REPO=https://github.com/keyfactor-pub/terraform-provider-ejbca
 NAME=ejbca
 BINARY=terraform-provider-${NAME}
 VERSION=1.0.0
