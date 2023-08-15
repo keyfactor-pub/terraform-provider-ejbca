@@ -17,14 +17,7 @@ type endEntityTestCase struct {
 }
 
 func TestAccEndEntityResource(t *testing.T) {
-	t1 := endEntityTestCase{
-		certificateSubject:   os.Getenv("EJBCA_CERTIFICATE_SUBJECT"),
-		endEntityProfile:     os.Getenv("EJBCA_END_ENTITY_PROFILE_NAME"),
-		certificateProfile:   os.Getenv("EJBCA_CERTIFICATE_PROFILE_NAME"),
-		certificateAuthority: os.Getenv("EJBCA_CA_NAME"),
-		endEntityName:        "ejbca_terraform_testacc",
-		endEntityPassword:    "password",
-	}
+	t1 := populateEndEntityTestCase("ejbca_terraform_testacc"+generateRandomString(5), "password")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -60,6 +53,18 @@ resource "ejbca_end_entity" "end_entity_test" {
   ca_name = "%s"
   certificate_profile_name = "%s"
   end_entity_profile_name = "%s"
+  token = "P12"
 }
-`, tc.endEntityProfile, tc.endEntityPassword, tc.certificateSubject, tc.certificateAuthority, tc.certificateProfile, tc.endEntityName)
+`, tc.endEntityName, tc.endEntityPassword, tc.certificateSubject, tc.certificateAuthority, tc.certificateProfile, tc.endEntityProfile)
+}
+
+func populateEndEntityTestCase(username string, password string) endEntityTestCase {
+	return endEntityTestCase{
+		certificateSubject:   fmt.Sprintf("CN=%s", username),
+		endEntityProfile:     os.Getenv("EJBCA_END_ENTITY_PROFILE_NAME"),
+		certificateProfile:   os.Getenv("EJBCA_CERTIFICATE_PROFILE_NAME"),
+		certificateAuthority: os.Getenv("EJBCA_CA_NAME"),
+		endEntityName:        username,
+		endEntityPassword:    password,
+	}
 }

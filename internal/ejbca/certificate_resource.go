@@ -2,13 +2,8 @@ package ejbca
 
 import (
 	"context"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -16,8 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"io"
-	"strings"
 )
 
 // Ensure ejbca defined types fully satisfy framework interfaces.
@@ -50,17 +43,13 @@ type CertificateResourceModel struct {
 	EndEntityPassword         types.String `tfsdk:"end_entity_password"`
 	Certificate               types.String `tfsdk:"certificate"`
 	IssuerDn                  types.String `tfsdk:"issuer_dn"`
-
-	// Only used if CertificateSigningRequest is empty
-	KeyAlg  types.String `tfsdk:"key_alg"`
-	KeySpec types.String `tfsdk:"key_spec"`
 }
 
 func (r *CertificateResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_certificate"
 }
 
-func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *CertificateResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "The EJBCA Certificate Resource allows you to manage a certificate in EJBCA.",
 
@@ -103,22 +92,6 @@ func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaReq
 			"end_entity_password": schema.StringAttribute{
 				Required:    true,
 				Description: "Password of the EJBCA entity",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-
-			// Only used if certificate_signing_request is empty
-			"key_alg": schema.StringAttribute{
-				Optional:    true,
-				Description: "Key algorithm assigned to end entity created if CSR is not provided",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"key_spec": schema.StringAttribute{
-				Optional:    true,
-				Description: "Key spec assigned to end entity created if CSR is not provided",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -168,76 +141,36 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	// If a CSR was provided, perform a PKCS#10 enrollment. Else, perform a Keystore enrollment.
-	if state.CertificateSigningRequest.ValueString() != "" {
-		resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).EnrollPkcs10Certificate(&state)...)
-	} else {
-
-	}
+	// Perform a PKCS#10 enrollment.
+	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).EnrollPkcs10Certificate(&state)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save state into Terraform state
+	// Write the state back to Terraform
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *CertificateResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state CertificateResourceModel
 
-	diags := req.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	tflog.Info(ctx, "Read called on CertificateResource resource")
+
+	// Read Terraform state into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	tflog.Info(ctx, "Read called on certificate resource")
-	certificateSerialNumber := state.Id.ValueString()
-
-	criteria := ejbca.SearchCertificateCriteriaRestRequest{
-		Property:             ptr("QUERY"),
-		Value:                ptr(certificateSerialNumber),
-		Operation:            ptr("EQUAL"),
-		AdditionalProperties: nil,
-	}
-
-	certSearch := ejbca.SearchCertificatesRestRequest{
-		MaxNumberOfResults:   ptr(int32(1)),
-		Criteria:             []ejbca.SearchCertificateCriteriaRestRequest{criteria},
-		AdditionalProperties: nil,
-	}
-
-	searchResult, _, err := r.client.V1CertificateApi.SearchCertificates(ctx).SearchCertificatesRestRequest(certSearch).Execute()
-	if err != nil {
-		tflog.Error(ctx, "Failed to query EJBCA for certificate: "+err.Error())
-
-		detail := ""
-		bodyError, ok := err.(*ejbca.GenericOpenAPIError)
-		if ok {
-			detail = string(bodyError.Body())
-		}
-
-		resp.Diagnostics.AddError(
-			"Failed to query EJBCA for certificate",
-			fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
-		)
+	// Read certificate from EJBCA
+	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).ReadCertificateContext(&state)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	if len(searchResult.Certificates) == 0 {
-		resp.Diagnostics.AddError(
-			"EJBCA didn't return any certificates",
-			fmt.Sprintf("EJBCA API returned no certificates after enrollment."),
-		)
-		return
-	}
-	certificate := searchResult.Certificates[0]
-
-	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).ComposeStateFromCertificateResponse(&certificate, &state)...)
-
-	diags = resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	// Write the state back to Terraform
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *CertificateResource) Update(_ context.Context, _ resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -251,182 +184,23 @@ func (r *CertificateResource) Update(_ context.Context, _ resource.UpdateRequest
 func (r *CertificateResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state CertificateResourceModel
 
+	tflog.Info(ctx, "Delete called on CertificateResource resource")
+
+	// Read Terraform state into the model
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	message, _, err := r.client.V1CertificateApi.RevokeCertificate(ctx, state.IssuerDn.ValueString(), state.Id.ValueString()).Reason("CESSATION_OF_OPERATION").Execute()
-	if err != nil {
-		tflog.Error(ctx, "Failed to revoke certificate with serial number \""+state.Id.ValueString()+"\": "+err.Error())
+	// Extract issuer DN and certificate serial number from state
+	issuerDn := state.IssuerDn.ValueString()
+	certificateSerialNumber := state.Id.ValueString()
 
-		detail := ""
-		bodyError, ok := err.(*ejbca.GenericOpenAPIError)
-		if ok {
-			detail = string(bodyError.Body())
-		}
-
-		resp.Diagnostics.AddError(
-			"Failed to revoke certificate with serial number \""+state.Id.ValueString()+"\": "+err.Error(),
-			fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
-		)
-		return
-	}
-
-	tflog.Info(ctx, "Revoked certificate with serial number \""+state.Id.ValueString()+"\": "+*message.Message)
+	// Revoke certificate
+	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).RevokeCertificate(issuerDn, certificateSerialNumber)...)
 }
 
 func (r *CertificateResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
-}
-
-// constructCertificateChainString extracts the certificate from an EJBCA CertificateRestResponse, encodes it to PEM format
-// if necessary, and either extracts or downloads the certificate chain. It takes the following arguments:
-//   - ctx: The context of the current Terraform run
-//   - client: Pointer to the EJBCA client
-//   - diagnostics: Pointer to a diagnostics object to which errors can be added
-//   - certificate: The EJBCA CertificateRestResponse object from which the certificate chain should be extracted
-//
-// If an error occurred, the function returns an empty string and adds an error to the diagnostics object.
-// If no error occurred, the function returns the certificate chain as a string, the issuer DN, and adds no error to the diagnostics object.
-func constructCertificateChainString(ctx context.Context, client *ejbca.APIClient, diagnostics *diag.Diagnostics, ejbcaCert *ejbca.CertificateRestResponse) (string, string, bool) {
-	var leafAndChain []*x509.Certificate
-	var issuerDn string
-
-	// Get a x509 certificate from the EJBCA certificate response object
-	if leaf, chainFound, err := getCertificatesFromEjbcaObject(ejbcaCert); err == nil && chainFound {
-		// If EJBCA returned a chain, we don't need to query EJBCA for the chain
-		leafAndChain = append(leafAndChain, leaf...)
-		issuerDn = leafAndChain[0].Issuer.String()
-	} else if err == nil && !chainFound {
-		// If EJBCA did not return a chain, we need to query EJBCA for the chain
-		leafAndChain = append(leafAndChain, leaf...)
-		issuerDn = leafAndChain[0].Issuer.String()
-
-		// Get the chain from EJBCA
-		chain, err := getCaChain(ctx, client, issuerDn)
-		if err != nil {
-			diagnostics.AddError(
-				"Failed to retrieve CA PEM for CA with DN "+issuerDn,
-				fmt.Sprintf("Got error: %s", err.Error()),
-			)
-			return "", "", diagnostics.HasError()
-		}
-		leafAndChain = append(leafAndChain, chain...)
-	} else {
-		diagnostics.AddError(
-			"Failed to parse certificate",
-			fmt.Sprintf("Failed to parse certificate: %s", err.Error()),
-		)
-		return "", "", diagnostics.HasError()
-	}
-
-	return compileCertificatesToPemString(ctx, leafAndChain), issuerDn, diagnostics.HasError()
-}
-
-func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse) ([]*x509.Certificate, bool, error) {
-	var certBytes []byte
-	var err error
-	certChainFound := false
-
-	if ejbcaCert.GetResponseFormat() == "PEM" {
-		// Extract the certificate from the PEM string
-		block, _ := pem.Decode([]byte(ejbcaCert.GetCertificate()))
-		if block == nil {
-			return nil, false, errors.New("failed to parse certificate PEM")
-		}
-		certBytes = block.Bytes
-	} else if ejbcaCert.GetResponseFormat() == "DER" {
-		// Depending on how the EJBCA API was called, the certificate will either be single b64 encoded or double b64 encoded
-		// Try to decode the certificate twice, but don't exit if we fail here. The certificate is decoded later which
-		// will give more insight into the failure.
-		bytes := []byte(ejbcaCert.GetCertificate())
-		for i := 0; i < 2; i++ {
-			var tempBytes []byte
-			tempBytes, err = base64.StdEncoding.DecodeString(string(bytes))
-			if err == nil {
-				bytes = tempBytes
-			}
-		}
-		certBytes = append(certBytes, bytes...)
-
-		// If the certificate chain is present, append it to the certificate bytes
-		if len(ejbcaCert.GetCertificateChain()) > 0 {
-			var chainCertBytes []byte
-
-			certChainFound = true
-			for _, chainCert := range ejbcaCert.GetCertificateChain() {
-				// Depending on how the EJBCA API was called, the certificate will either be single b64 encoded or double b64 encoded
-				// Try to decode the certificate twice, but don't exit if we fail here. The certificate is decoded later which
-				// will give more insight into the failure.
-				for i := 0; i < 2; i++ {
-					var tempBytes []byte
-					tempBytes, err = base64.StdEncoding.DecodeString(chainCert)
-					if err == nil {
-						chainCertBytes = tempBytes
-					}
-				}
-
-				certBytes = append(certBytes, chainCertBytes...)
-			}
-		}
-	} else {
-		return nil, false, errors.New("ejbca returned unknown certificate format: " + ejbcaCert.GetResponseFormat())
-	}
-
-	certs, err := x509.ParseCertificates(certBytes)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return certs, certChainFound, nil
-}
-
-func getCaChain(ctx context.Context, client *ejbca.APIClient, issuerDn string) ([]*x509.Certificate, error) {
-	caResp, err := client.V1CaApi.GetCertificateAsPem(ctx, issuerDn).Execute()
-	if err != nil {
-		return nil, err
-	}
-
-	encodedBytes, err := io.ReadAll(caResp.Body) // EJBCA returns CA chain as a single PEM file
-	if err != nil {
-		return nil, err
-	}
-
-	// Decode PEM file into a slice of der bytes
-	var block *pem.Block
-	var derBytes []byte
-	for {
-		block, encodedBytes = pem.Decode(encodedBytes)
-		if block == nil {
-			break
-		}
-		derBytes = append(derBytes, block.Bytes...)
-	}
-
-	certificates, err := x509.ParseCertificates(derBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return certificates, nil
-}
-
-// compileCertificatesToPemString takes a slice of x509 certificates and returns a string containing the certificates in PEM format
-// If an error occurred, the function logs the error and continues to parse the remaining objects.
-func compileCertificatesToPemString(ctx context.Context, certificates []*x509.Certificate) string {
-	var pemBuilder strings.Builder
-
-	for _, certificate := range certificates {
-		err := pem.Encode(&pemBuilder, &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: certificate.Raw,
-		})
-		if err != nil {
-			tflog.Error(ctx, "Failed to encode certificate with serial number "+certificate.SerialNumber.String()+" to PEM. Continuing anyway. ("+err.Error()+")")
-		}
-	}
-
-	return pemBuilder.String()
 }

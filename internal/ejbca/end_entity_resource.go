@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -38,8 +39,6 @@ type EndEntityResourceModel struct {
 	Token                  types.String `tfsdk:"token"`
 	AccountBindingId       types.String `tfsdk:"account_binding_id"` // Not returned
 	// TODO extension_data
-
-	Status types.String `tfsdk:"status"`
 }
 
 func (r *EndEntityResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -51,14 +50,14 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 		MarkdownDescription: "The EJBCA Certificate Resource allows you to manage a certificate in EJBCA.",
 
 		Attributes: map[string]schema.Attribute{
-			"username": schema.StringAttribute{
+			"end_entity_name": schema.StringAttribute{
 				Required:    true,
 				Description: "Username of the end entity",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"password": schema.StringAttribute{
+			"end_entity_password": schema.StringAttribute{
 				Required:    true,
 				Description: "Password of the end entity",
 				PlanModifiers: []planmodifier.String{
@@ -108,7 +107,7 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				},
 			},
 			"token": schema.StringAttribute{
-				Optional:    true,
+				Required:    true,
 				Description: "Token type property (USERGENERATED, P12, JKS, PEM)",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -123,6 +122,7 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			// TODO extension_data
 
+			// Computed attributes
 			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Username of the created end entity",
@@ -153,43 +153,43 @@ func (r *EndEntityResource) Configure(_ context.Context, req resource.ConfigureR
 func (r *EndEntityResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var state EndEntityResourceModel
 
+	tflog.Info(ctx, "Create called on EndEntityResource resource")
+
 	// Read Terraform plan state into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).CreateEndEntity(&state)...)
-
+	// Create end entity in EJBCA
+	resp.Diagnostics.Append(CreateEndEntityContext(ctx, r.client).CreateEndEntity(&state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save state into Terraform state
+	// Write the state back to Terraform
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *EndEntityResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state EndEntityResourceModel
 
-	diags := req.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	tflog.Info(ctx, "Read called on EndEntityResource resource")
+
+	// Read Terraform state into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	tflog.Info(ctx, "Read called on certificate resource")
-
-	// Create certificate context to easily manipulate EJBCA state
-	// Then, read end entity context corresponding to end entity with username in state
-	// ReadEndEntityContext returns a list of diags. If an error occurred, return.
-	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).ReadEndEntityContext(&state)...)
+	// Read end entity from EJBCA
+	resp.Diagnostics.Append(CreateEndEntityContext(ctx, r.client).ReadEndEntityContext(&state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	diags = resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	// Write the state back to Terraform
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *EndEntityResource) Update(_ context.Context, _ resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -201,9 +201,20 @@ func (r *EndEntityResource) Update(_ context.Context, _ resource.UpdateRequest, 
 }
 
 func (r *EndEntityResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state EndEntityResourceModel
 
+	tflog.Info(ctx, "Delete called on EndEntityResource resource")
+
+	// Read Terraform state into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete end entity from EJBCA
+	resp.Diagnostics.Append(CreateEndEntityContext(ctx, r.client).DeleteEndEntity(&state)...)
 }
 
 func (r *EndEntityResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
