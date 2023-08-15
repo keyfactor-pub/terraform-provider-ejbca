@@ -1,5 +1,5 @@
-github.com/Keyfactor/ejbca-go-client-sdk v0.1.4 h1:AE9HI/JuGmrZW1MQ1Sk4c2PKbpcondjUjpo02kKH4n4=
-github.com/Keyfactor/ejbca-go-client-sdk v0.1.4/go.mod h1:12uc/cynQy/GEiYnYJgivFjRGpyusPvIu/vLYAscejs=
+github.com/Keyfactor/ejbca-go-client-sdk v0.1.5 h1:PLX7NH6q26XyxIA7TQfZbKJawsXLZ+6yYs9pBYHsZrU=
+github.com/Keyfactor/ejbca-go-client-sdk v0.1.5/go.mod h1:12uc/cynQy/GEiYnYJgivFjRGpyusPvIu/vLYAscejs=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=
 github.com/Masterminds/goutils v1.1.1/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
 github.com/Masterminds/semver/v3 v3.1.1 h1:hLg3sBzpNErnxhQtUy/mmLR2I9foDujNK030IGemrRc=
