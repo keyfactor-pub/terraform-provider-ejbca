@@ -14,7 +14,7 @@ type keystoresTestCase struct {
 }
 
 func TestAccKeystoreResource(t *testing.T) {
-	t.Skip() // ejbca_keystore is not yet supported.
+	t.Skip("ejbca_keystore is not yet supported")
 	// Create a new EndEntity
 	endEntityName := "ejbca_terraform_testacc" + generateRandomString(5)
 	endEntityPassword := "password"

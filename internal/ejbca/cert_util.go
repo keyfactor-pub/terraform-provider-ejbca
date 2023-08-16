@@ -165,16 +165,6 @@ func (c *CertificateContext) EnrollKeystore(state *KeystoreResourceModel) diag.D
 	return diags
 }
 
-func (c *CertificateContext) EnrollKeystoreWrapper(state *KeystoreResourceModel) diag.Diagnostics {
-	diags := diag.Diagnostics{}
-
-	// First create a CSR according to the state
-
-	// Enroll the CSR using PKCS#10 enrollment
-
-	return diags
-}
-
 func (c *CertificateContext) ReadKeystoreContext(state *KeystoreResourceModel) diag.Diagnostics {
 	var certificateState CertificateResourceModel
 
