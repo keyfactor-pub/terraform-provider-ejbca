@@ -13,6 +13,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
+/*
+ * This file contains the implementation of the EJBCA KeystoreResource resource.
+ * It is not in use yet because the EJBCA API requires modification to support
+ * downloading the enrolled certificate in a format better supported by GoLang.
+ */
+
 // Ensure ejbca defined types fully satisfy framework interfaces.
 var _ resource.Resource = &KeystoreResource{}
 var _ resource.ResourceWithImportState = &KeystoreResource{}
@@ -33,6 +39,7 @@ type KeystoreResourceModel struct {
 	KeyAlg            types.String `tfsdk:"key_alg"`
 	KeySpec           types.String `tfsdk:"key_spec"`
 	Certificate       types.String `tfsdk:"certificate"`
+	Key               types.String `tfsdk:"key"`
 	IssuerDn          types.String `tfsdk:"issuer_dn"`
 }
 
@@ -82,6 +89,10 @@ func (r *KeystoreResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"certificate": schema.StringAttribute{
 				Computed:    true,
 				Description: "PEM encoded X509v3 certificate and chain",
+			},
+			"key": schema.StringAttribute{
+				Computed:    true,
+				Description: "PEM encoded PKCS#8 private key",
 			},
 			"issuer_dn": schema.StringAttribute{
 				Computed:    true,

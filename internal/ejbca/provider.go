@@ -96,7 +96,6 @@ func (p *EjbcaProvider) Configure(ctx context.Context, req provider.ConfigureReq
 func (p *EjbcaProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewCertificateResource,
-		NewKeystoreResource,
 		NewEndEntityResource,
 	}
 }

@@ -38,6 +38,7 @@ type EndEntityResourceModel struct {
 	EndEntityProfileName   types.String `tfsdk:"end_entity_profile_name"`  // Not returned
 	Token                  types.String `tfsdk:"token"`
 	AccountBindingId       types.String `tfsdk:"account_binding_id"` // Not returned
+	Status                 types.String `tfsdk:"status"`
 	// TODO extension_data
 }
 
@@ -126,6 +127,10 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Username of the created end entity",
+			},
+			"status": schema.StringAttribute{
+				Computed:    true,
+				Description: "Status of the created end entity",
 			},
 		},
 	}

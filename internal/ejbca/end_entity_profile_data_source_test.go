@@ -9,7 +9,6 @@ import (
 )
 
 func TestAccEndEntityProfileDataSource(t *testing.T) {
-	t.Skip()
 
 	eep, err := getRandomAuthorizedEEP()
 	if err != nil {

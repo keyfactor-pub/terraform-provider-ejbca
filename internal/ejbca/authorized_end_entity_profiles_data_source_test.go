@@ -6,7 +6,6 @@ import (
 )
 
 func TestAccAuthorizedEndEntityProfilesDataSource(t *testing.T) {
-	t.Skip()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

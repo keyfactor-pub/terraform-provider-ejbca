@@ -49,10 +49,14 @@ func (c *EndEntityContext) CreateEndEntity(state *EndEntityResourceModel) diag.D
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to create new End Entity")
 	}
 
-	// Set the ID to the EndEntityName (username)
-	state.Id = state.EndEntityName
-
 	tflog.Info(c.ctx, "Created new End Entity with username "+state.EndEntityName.ValueString())
+
+	// Update the state with the new End Entity's information
+	diags.Append(c.ReadEndEntityContext(state)...)
+	if diags.HasError() {
+		return diags
+	}
+
 	return diags
 }
 
@@ -91,15 +95,54 @@ func (c *EndEntityContext) ReadEndEntityContext(state *EndEntityResourceModel) d
 	endEntity := searchResult.EndEntities[0]
 
 	// Set the ID to the EndEntityName (username)
-	state.Id = state.EndEntityName
+	state.Id = types.StringValue(endEntity.GetUsername())
 
-	state.EndEntityName = types.StringValue(endEntity.GetUsername())
-	state.SubjectDn = types.StringValue(endEntity.GetDn())
-	state.SubjectAltName = types.StringValue(endEntity.GetSubjectAltName())
-	state.Email = types.StringValue(endEntity.GetEmail())
-	state.Token = types.StringValue(endEntity.GetToken())
+	// Set the rest of the state
+	if endEntityName, ok := endEntity.GetUsernameOk(); ok && *endEntityName != "" {
+		state.EndEntityName = types.StringValue(*endEntityName)
+	}
+	if endEntityDn, ok := endEntity.GetDnOk(); ok && *endEntityDn != "" {
+		state.SubjectDn = types.StringValue(*endEntityDn)
+	}
+	if endEntitySubjectAltName, ok := endEntity.GetSubjectAltNameOk(); ok && *endEntitySubjectAltName != "" {
+		state.SubjectAltName = types.StringValue(*endEntitySubjectAltName)
+	}
+	if endEntityEmail, ok := endEntity.GetEmailOk(); ok && *endEntityEmail != "" {
+		state.Email = types.StringValue(*endEntityEmail)
+	}
+	if endEntityToken, ok := endEntity.GetTokenOk(); ok && *endEntityToken != "" {
+		state.Token = types.StringValue(*endEntityToken)
+	}
+	if status, ok := endEntity.GetStatusOk(); ok && *status != "" {
+		state.Status = types.StringValue(*status)
+	}
 
 	// TODO need to find creative way to retrieve EndEntityPassword, CaName, CertificateProfileName, EndEntityProfileName, and AccountBindingId
+
+	return diags
+}
+
+// UpdateEndEntityStatus sets the token
+func (c *EndEntityContext) UpdateEndEntityStatus(state *EndEntityResourceModel) diag.Diagnostics {
+	diags := diag.Diagnostics{}
+
+	// Set the new status
+	request := ejbca.SetEndEntityStatusRestRequest{
+		Password:             state.EndEntityPassword.ValueStringPointer(),
+		Token:                state.Token.ValueStringPointer(),
+		Status:               state.Status.ValueStringPointer(),
+		AdditionalProperties: nil,
+	}
+	_, err := c.client.V1EndentityApi.Setstatus(c.ctx, state.EndEntityName.ValueString()).SetEndEntityStatusRestRequest(request).Execute()
+	if err != nil {
+		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to update End Entity status")
+	}
+
+	// Update the state with the new End Entity's information
+	diags.Append(c.ReadEndEntityContext(state)...)
+	if diags.HasError() {
+		return diags
+	}
 
 	return diags
 }

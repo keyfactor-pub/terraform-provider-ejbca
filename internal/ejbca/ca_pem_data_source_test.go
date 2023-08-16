@@ -8,7 +8,7 @@ import (
 )
 
 func TestAccCaPemDataSource(t *testing.T) {
-	t.Skip()
+
 	dn, err := getRandomAuthorizedCa()
 	if err != nil {
 		t.Fatal(err)

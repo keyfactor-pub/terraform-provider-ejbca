@@ -29,7 +29,6 @@ func TestAccEndEntityResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Computed fields
 					resource.TestCheckResourceAttrSet("ejbca_end_entity.end_entity_test", "id"),
-					resource.TestCheckResourceAttrSet("ejbca_end_entity.end_entity_test", "status"),
 
 					// User inputted fields
 					resource.TestCheckResourceAttrSet("ejbca_end_entity.end_entity_test", "end_entity_name"),

@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
+	"os"
+	"software.sslmate.com/src/go-pkcs12"
 	"strings"
 )
 
@@ -111,11 +113,22 @@ func (c *CertificateContext) ReadCertificateContext(state *CertificateResourceMo
 func (c *CertificateContext) EnrollKeystore(state *KeystoreResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
+	endEntityContext := c.createEndEntityContext()
+
 	// Validate that the EndEntity has token type P12
 	endEntity := EndEntityResourceModel{EndEntityName: state.EndEntityName}
-	diags.Append(c.createEndEntityContext().ReadEndEntityContext(&endEntity)...)
+	diags.Append(endEntityContext.ReadEndEntityContext(&endEntity)...)
 	if diags.HasError() {
 		return diags
+	}
+
+	// Force EndEntity to have status NEW
+	if endEntity.Status.ValueString() != "NEW" {
+		endEntity.Status = types.StringValue("NEW")
+		diags.Append(endEntityContext.UpdateEndEntityStatus(&endEntity)...)
+		if diags.HasError() {
+			return diags
+		}
 	}
 
 	// TODO support other token types
@@ -141,21 +154,23 @@ func (c *CertificateContext) EnrollKeystore(state *KeystoreResourceModel) diag.D
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to enroll Keystore")
 	}
 
-	var certificateModel CertificateResourceModel
-
-	diags.Append(c.ComposeStateFromCertificateResponse(certificate, &certificateModel)...)
+	diags.Append(c.ComposeStateFromKeystoreResponse(certificate, state)...)
 	if diags.HasError() {
 		return diags
 	}
 
-	state.Id = certificateModel.Id
-	state.EndEntityName = certificateModel.EndEntityName
-	// Don't copy EndEntityPassword
-	state.Certificate = certificateModel.Certificate
-	state.IssuerDn = certificateModel.IssuerDn
-
 	// Compute KeyAlg and KeySpec from the certificate
 	// TODO
+
+	return diags
+}
+
+func (c *CertificateContext) EnrollKeystoreWrapper(state *KeystoreResourceModel) diag.Diagnostics {
+	diags := diag.Diagnostics{}
+
+	// First create a CSR according to the state
+
+	// Enroll the CSR using PKCS#10 enrollment
 
 	return diags
 }
@@ -193,24 +208,37 @@ func (c *CertificateContext) RevokeCertificate(issuerDn string, certificateSeria
 	return diags
 }
 
-// ComposeStateFromCertificateResponse extracts the certificate from an EJBCA CertificateRestResponse, encodes it to PEM format
-// if necessary, and either extracts or downloads the certificate chain.
-func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ejbca.CertificateRestResponse, state *CertificateResourceModel) diag.Diagnostics {
+func (c *CertificateContext) ComposeStateFromKeystoreResponse(certificate *ejbca.CertificateRestResponse, state *KeystoreResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	if state == nil {
-		diags.AddError("ComposeStateFromCertificateResponse was called improperly", "Pointer to CertificateResourceModel is nil")
+		diags.AddError("ComposeStateFromKeystoreResponse was called improperly", "Pointer to KeystoreResourceModel is nil")
 		return diags
 	}
 
 	var leafAndChain []*x509.Certificate
 	var issuerDn string
 
+	leaf, key, err := getCertificatesFromEjbcaObject(certificate, state.EndEntityPassword.ValueString())
+	if err != nil {
+		diags.AddError(
+			"Failed to parse certificate",
+			fmt.Sprintf("Failed to parse certificate: %s", err.Error()),
+		)
+		return diags
+	} else if leaf == nil || len(leaf) == 0 {
+		diags.AddError(
+			"Failed to parse certificate",
+			fmt.Sprintf("Failed to parse certificate: %s", "No certificate returned from EJBCA"),
+		)
+		return diags
+	}
+
 	// Get a x509 certificate from the EJBCA certificate response object
-	if leaf, chainFound, err := getCertificatesFromEjbcaObject(certificate); err == nil && chainFound {
+	if len(leaf) > 1 {
 		// If EJBCA returned a chain, we don't need to query EJBCA for the chain
 		leafAndChain = append(leafAndChain, leaf...)
 		issuerDn = leafAndChain[0].Issuer.String()
-	} else if err == nil && !chainFound {
+	} else if len(leaf) == 1 {
 		// If EJBCA did not return a chain, we need to query EJBCA for the chain
 		leafAndChain = append(leafAndChain, leaf...)
 		issuerDn = leafAndChain[0].Issuer.String()
@@ -225,12 +253,71 @@ func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ej
 			return diags
 		}
 		leafAndChain = append(leafAndChain, chain...)
-	} else {
+	}
+
+	pemLeafAndChain := compileCertificatesToPemString(c.ctx, leafAndChain)
+
+	// Now handle the private key
+	// TODO this will destroy everything
+	state.Key = types.StringValue(key.(string))
+
+	// Set the ID of the resource to the certificate serial number
+	state.Id = types.StringValue(certificate.GetSerialNumber())
+	state.Certificate = types.StringValue(pemLeafAndChain)
+	state.IssuerDn = types.StringValue(issuerDn)
+
+	tflog.Debug(c.ctx, "Composed certificate information into state")
+
+	return diags
+}
+
+// ComposeStateFromCertificateResponse extracts the certificate from an EJBCA CertificateRestResponse, encodes it to PEM format
+// if necessary, and either extracts or downloads the certificate chain.
+func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ejbca.CertificateRestResponse, state *CertificateResourceModel) diag.Diagnostics {
+	diags := diag.Diagnostics{}
+	if state == nil {
+		diags.AddError("ComposeStateFromCertificateResponse was called improperly", "Pointer to CertificateResourceModel is nil")
+		return diags
+	}
+
+	var leafAndChain []*x509.Certificate
+	var issuerDn string
+
+	leaf, _, err := getCertificatesFromEjbcaObject(certificate, "")
+	if err != nil {
 		diags.AddError(
 			"Failed to parse certificate",
 			fmt.Sprintf("Failed to parse certificate: %s", err.Error()),
 		)
 		return diags
+	} else if leaf == nil || len(leaf) == 0 {
+		diags.AddError(
+			"Failed to parse certificate",
+			fmt.Sprintf("Failed to parse certificate: %s", "No certificate returned from EJBCA"),
+		)
+		return diags
+	}
+
+	// Get a x509 certificate from the EJBCA certificate response object
+	if len(leaf) > 1 {
+		// If EJBCA returned a chain, we don't need to query EJBCA for the chain
+		leafAndChain = append(leafAndChain, leaf...)
+		issuerDn = leafAndChain[0].Issuer.String()
+	} else if len(leaf) == 1 {
+		// If EJBCA did not return a chain, we need to query EJBCA for the chain
+		leafAndChain = append(leafAndChain, leaf...)
+		issuerDn = leafAndChain[0].Issuer.String()
+
+		// Get the chain from EJBCA
+		chain, err := c.DownloadCaChain(issuerDn)
+		if err != nil {
+			diags.AddError(
+				"Failed to retrieve CA PEM for CA with DN "+issuerDn,
+				fmt.Sprintf("Got error: %s", err.Error()),
+			)
+			return diags
+		}
+		leafAndChain = append(leafAndChain, chain...)
 	}
 
 	pemLeafAndChain := compileCertificatesToPemString(c.ctx, leafAndChain)
@@ -239,8 +326,13 @@ func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ej
 	state.Id = types.StringValue(certificate.GetSerialNumber())
 	state.Certificate = types.StringValue(pemLeafAndChain)
 	state.IssuerDn = types.StringValue(issuerDn)
-	state.CertificateProfileName = types.StringValue(certificate.GetCertificateProfile())
-	state.EndEntityProfileName = types.StringValue(certificate.GetEndEntityProfile())
+
+	if certProfileName, ok := certificate.GetCertificateProfileOk(); ok && *certProfileName != "" {
+		state.CertificateProfileName = types.StringValue(*certProfileName)
+	}
+	if endEntityProfileName, ok := certificate.GetEndEntityProfileOk(); ok && *endEntityProfileName != "" {
+		state.EndEntityProfileName = types.StringValue(*endEntityProfileName)
+	}
 
 	tflog.Debug(c.ctx, "Composed certificate information into state")
 
@@ -297,16 +389,16 @@ func logErrorAndReturnDiags(ctx context.Context, diags diag.Diagnostics, err err
 	return diags
 }
 
-func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse) ([]*x509.Certificate, bool, error) {
+func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, password string) ([]*x509.Certificate, interface{}, error) {
 	var certBytes []byte
 	var err error
-	certChainFound := false
+	var privateKey interface{}
 
 	if ejbcaCert.GetResponseFormat() == "PEM" {
 		// Extract the certificate from the PEM string
 		block, _ := pem.Decode([]byte(ejbcaCert.GetCertificate()))
 		if block == nil {
-			return nil, false, errors.New("failed to parse certificate PEM")
+			return nil, nil, errors.New("failed to parse certificate PEM")
 		}
 		certBytes = block.Bytes
 	} else if ejbcaCert.GetResponseFormat() == "DER" {
@@ -327,7 +419,6 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse) ([
 		if len(ejbcaCert.GetCertificateChain()) > 0 {
 			var chainCertBytes []byte
 
-			certChainFound = true
 			for _, chainCert := range ejbcaCert.GetCertificateChain() {
 				// Depending on how the EJBCA API was called, the certificate will either be single b64 encoded or double b64 encoded
 				// Try to decode the certificate twice, but don't exit if we fail here. The certificate is decoded later which
@@ -343,8 +434,36 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse) ([
 				certBytes = append(certBytes, chainCertBytes...)
 			}
 		}
+	} else if ejbcaCert.GetResponseFormat() == "PKCS12" {
+		var pkcs12Bytes []byte
+		pkcs12Bytes, err = base64.StdEncoding.DecodeString(ejbcaCert.GetCertificate())
+		if err != nil {
+			return nil, nil, errors.New("failed to base64 decode PKCS12 certificate: " + err.Error())
+		}
+
+		// Temporarily put pkcs12Bytes into a file for testing
+		err = os.WriteFile("pkcs12.p12", pkcs12Bytes, 0644)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		key, leaf, chain, err := pkcs12.DecodeChain(pkcs12Bytes, password)
+		if err != nil {
+			return nil, nil, errors.New("failed to decode PKCS12 certificate: " + err.Error())
+		}
+
+		// Copy the leaf certificate into the certBytes slice
+		certBytes = leaf.Raw
+
+		// Copy the chain certificates into the certBytes slice
+		for _, chainCert := range chain {
+			certBytes = append(certBytes, chainCert.Raw...)
+		}
+
+		// Copy the private key into the privateKey variable
+		privateKey = key
 	} else {
-		return nil, false, errors.New("ejbca returned unknown certificate format: " + ejbcaCert.GetResponseFormat())
+		return nil, nil, errors.New(fmt.Sprintf("ejbca returned unknown certificate format: %s. Expected PEM, DER, or PKCS12", ejbcaCert.GetResponseFormat()))
 	}
 
 	certs, err := x509.ParseCertificates(certBytes)
@@ -352,7 +471,7 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse) ([
 		return nil, false, err
 	}
 
-	return certs, certChainFound, nil
+	return certs, privateKey, nil
 }
 
 // compileCertificatesToPemString takes a slice of x509 certificates and returns a string containing the certificates in PEM format

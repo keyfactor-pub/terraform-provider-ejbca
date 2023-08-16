@@ -26,7 +26,6 @@ type certificateTestCase struct {
 }
 
 func TestAccCertificateResource(t *testing.T) {
-	t.Skip()
 
 	t1 := certificateTestCase{
 		certificateSubject:   os.Getenv("EJBCA_CERTIFICATE_SUBJECT"),

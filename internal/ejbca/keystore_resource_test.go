@@ -14,17 +14,14 @@ type keystoresTestCase struct {
 }
 
 func TestAccKeystoreResource(t *testing.T) {
-	t.Skip()
+	t.Skip() // ejbca_keystore is not yet supported.
 	// Create a new EndEntity
-	endEntityName := "ejbca_terraform_testacc"
+	endEntityName := "ejbca_terraform_testacc" + generateRandomString(5)
 	endEntityPassword := "password"
-	err := createEndEntityIfNoExist(populateEndEntityTestCase(endEntityName, endEntityPassword))
-	if err != nil {
-		t.Fatal(err)
-	}
+	endEntityValues := populateEndEntityTestCase(endEntityName, endEntityPassword)
 
 	// Configure test
-	t1 := keystoresTestCase{
+	ktc1 := keystoresTestCase{
 		endEntityName:     endEntityName,
 		endEntityPassword: endEntityPassword,
 		keyAlg:            "RSA",
@@ -37,7 +34,7 @@ func TestAccKeystoreResource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccEjbcaKeystore(t1),
+				Config: testAccEjbcaKeystore(endEntityValues, ktc1),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Computed fields
 					resource.TestCheckResourceAttrSet("ejbca_keystore.keystore_test", "id"),
@@ -47,17 +44,22 @@ func TestAccKeystoreResource(t *testing.T) {
 	})
 }
 
-func testAccEjbcaKeystore(tc keystoresTestCase) string {
+func testAccEjbcaKeystore(etc endEntityTestCase, ktc keystoresTestCase) string {
 	return fmt.Sprintf(`
-resource "ejbca_keystore" "keystore_test" {
+resource "ejbca_end_entity" "end_entity_test" {
   end_entity_name = "%s"
+  end_entity_password = "%s"
+  subject_dn = "%s"
+  ca_name = "%s"
+  certificate_profile_name = "%s"
+  end_entity_profile_name = "%s"
+  token = "P12"
+}
+resource "ejbca_keystore" "keystore_test" {
+  end_entity_name = ejbca_end_entity.end_entity_test.end_entity_name
   end_entity_password = "%s"
   key_alg = "%s"
   key_spec = "%s"
 }
-`, tc.endEntityName, tc.endEntityPassword, tc.keyAlg, tc.keySpec)
-}
-
-func createEndEntityIfNoExist(tc endEntityTestCase) error {
-	return nil
+`, etc.endEntityName, etc.endEntityPassword, etc.certificateSubject, etc.certificateAuthority, etc.certificateProfile, etc.endEntityProfile, ktc.endEntityPassword, ktc.keyAlg, ktc.keySpec)
 }
