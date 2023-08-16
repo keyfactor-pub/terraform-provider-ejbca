@@ -11,10 +11,10 @@ import (
 )
 
 // Ensure EjbcaProvider satisfies various ejbca interfaces.
-var _ provider.Provider = &EjbcaProvider{}
+var _ provider.Provider = &Provider{}
 
-// EjbcaProvider defines the ejbca implementation.
-type EjbcaProvider struct {
+// Provider defines the ejbca implementation.
+type Provider struct {
 	// version is set to the ejbca version on release, "dev" when the
 	// ejbca is built and ran locally, and "test" when running acceptance
 	// testing.
@@ -28,13 +28,14 @@ type ProviderModel struct {
 	ClientCertKeyPath types.String `tfsdk:"client_cert_key_path"`
 }
 
-func (p *EjbcaProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+func (p *Provider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "ejbca"
 	resp.Version = p.version
 }
 
-func (p *EjbcaProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: providerMarkdownDescription,
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				Optional: true,
@@ -57,7 +58,7 @@ func (p *EjbcaProvider) Schema(ctx context.Context, req provider.SchemaRequest, 
 	}
 }
 
-func (p *EjbcaProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	config := ProviderModel{}
 
 	diags := req.Config.Get(ctx, &config)
@@ -93,14 +94,14 @@ func (p *EjbcaProvider) Configure(ctx context.Context, req provider.ConfigureReq
 	resp.ResourceData = ejbcaSdk
 }
 
-func (p *EjbcaProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewCertificateResource,
 		NewEndEntityResource,
 	}
 }
 
-func (p *EjbcaProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewEndEntityProfileDataSource,
 		NewAuthorizedEndEntityProfilesDataSource,
@@ -110,7 +111,7 @@ func (p *EjbcaProvider) DataSources(ctx context.Context) []func() datasource.Dat
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &EjbcaProvider{
+		return &Provider{
 			version: version,
 		}
 	}
@@ -119,3 +120,9 @@ func New(version string) func() provider.Provider {
 func ptr[T any](v T) *T {
 	return &v
 }
+
+const providerMarkdownDescription = `
+Configuration of the Terraform Provider for EJBCA requires the hostname to the EJBCA platform,
+and a certificate/private key provided for an authenticated user of EJBCA.
+
+`

@@ -4,11 +4,16 @@ page_title: "ejbca_authorized_end_entity_profiles Data Source - terraform-provid
 subcategory: ""
 description: |-
   Data source that provides the list of authorized end entity profiles for the current user.
+  EJBCA API Usage
+  GET /v2/endentity/profiles/authorized - Used to get the list of authorized end entity profiles for the current user.
 ---
 
 # ejbca_authorized_end_entity_profiles (Data Source)
 
 Data source that provides the list of authorized end entity profiles for the current user.
+
+## EJBCA API Usage
+* `GET /v2/endentity/profiles/authorized` - Used to get the list of authorized end entity profiles for the current user.
 
 ## Example Usage
 
@@ -26,7 +31,7 @@ output "aeep" {
 
 ### Read-Only
 
-- `authorized_end_entity_profiles` (Set of String) Set of authorized end entity profiles for the current user.
+- `ejbca_authorized_end_entity_profiles` (Set of String) Set of authorized end entity profiles for the current user.
 - `id` (Number) The ID of the data source.
 
 

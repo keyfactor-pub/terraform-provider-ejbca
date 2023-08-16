@@ -19,9 +19,9 @@ resource "tls_cert_request" "csr" {
 # Sign the CSR with EJBCA
 resource "ejbca_certificate" "Certificate" {
   certificate_signing_request = tls_cert_request.csr.cert_request_pem
-  certificate_profile_name = "tlsServerAuth"
-  end_entity_profile_name = "endEntityProfileName"
-  certificate_authority_name = "ManagementCA"
-  end_entity_name = "ejbca_tf_demo"
-  end_entity_password = "password"
+  certificate_profile_name    = "tlsServerAuth"
+  end_entity_profile_name     = "endEntityProfileName"
+  certificate_authority_name  = "ManagementCA"
+  end_entity_name             = "ejbca_tf_demo"
+  end_entity_password         = "password"
 }

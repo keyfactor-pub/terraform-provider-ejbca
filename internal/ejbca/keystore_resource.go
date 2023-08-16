@@ -49,7 +49,7 @@ func (r *KeystoreResource) Metadata(_ context.Context, req resource.MetadataRequ
 
 func (r *KeystoreResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The EJBCA Keystore Resource allows you to enroll a certificate and let EJBCA generate keys for you.",
+		MarkdownDescription: keystoreResourceMarkdownDescription,
 
 		Attributes: map[string]schema.Attribute{
 			"end_entity_name": schema.StringAttribute{
@@ -194,3 +194,14 @@ func (r *KeystoreResource) Delete(ctx context.Context, req resource.DeleteReques
 func (r *KeystoreResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
+
+const keystoreResourceMarkdownDescription = `
+The EJBCA Keystore Resource allows you to enroll a certificate and let EJBCA generate keys for you. The end entity referenced by the resource must already exist in EJBCA, which can be accomplished using the ` + "`" + `ejbca_end_entity` + "`" + ` resource.
+
+## EJBCA API Usage
+* ` + "`" + `POST /v1/certificate/enrollkeystore` + "`" + ` - Used to enroll a certificate and let EJBCA generate keys for you according to the configuration of the specified end entity
+* ` + "`" + `POST /v1/certificate/search` + "`" + ` - Used to search for a certificate by serial number
+* ` + "`" + `GET /v1/ca/{subject_dn}/certificate/download` + "`" + ` - Used to download the CA certificate chain if it was not provided in the response from ` + "`" + `/v1/certificate/search` + "`" + `
+* ` + "`" + `PUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke` + "`" + ` - Used to revoke a certificate
+* ` + "`" + `POST /v1/endentity/{endentity_name}/setstatus` + "`" + ` Used to update the status of an End Entity if it's not NEW'
+`

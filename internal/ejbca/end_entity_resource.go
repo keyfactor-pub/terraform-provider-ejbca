@@ -48,7 +48,7 @@ func (r *EndEntityResource) Metadata(_ context.Context, req resource.MetadataReq
 
 func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The EJBCA Certificate Resource allows you to manage a certificate in EJBCA.",
+		MarkdownDescription: endEntityMarkdownDescription,
 
 		Attributes: map[string]schema.Attribute{
 			"end_entity_name": schema.StringAttribute{
@@ -223,3 +223,13 @@ func (r *EndEntityResource) Delete(ctx context.Context, req resource.DeleteReque
 func (r *EndEntityResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
+
+const endEntityMarkdownDescription = `
+The EJBCA End Entity Resource allows you to manage an end entity in EJBCA. End Entities are users, machines, or services that are issued certificates by EJBCA. End Entities are identified by their username and are associated with a Certificate Authority (CA), Certificate Profile, and End Entity Profile. End Entities can be created, read, and deleted (CRD) using this resource.
+
+## EJBCA API Usage
+* ` + "`" + `POST /v1/endentity` + "`" + ` - Used to create a new end entity
+* ` + "`" + `POST /v1/endentity/search` + "`" + ` - Used to read and delete an existing end entity
+* ` + "`" + `POST /v1/endentity/{endentity_name}/setstatus` + "`" + ` Used to update the status of an End Entity if it's not NEW'
+* ` + "`" + `DELETE /v1/endentity/{endentity_name}` + "`" + ` - Used to delete an existing end entity
+`

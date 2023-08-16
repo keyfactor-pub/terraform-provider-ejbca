@@ -4,11 +4,16 @@ page_title: "ejbca_end_entity_profile Data Source - terraform-provider-ejbca"
 subcategory: ""
 description: |-
   Data source that provides information about an EJBCA End Entity Profile
+  EJBCA API Usage
+  GET /v2/endentity/profile/{endentity_profile_name} - Used to retrieve the end entity profile
 ---
 
 # ejbca_end_entity_profile (Data Source)
 
 Data source that provides information about an EJBCA End Entity Profile
+
+## EJBCA API Usage
+* `GET /v2/endentity/profile/{endentity_profile_name}` - Used to retrieve the end entity profile
 
 ## Example Usage
 

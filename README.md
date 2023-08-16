@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Keyfactor/ejbca-k8s-csr-signer)](https://goreportcard.com/report/github.com/Keyfactor/ejbca-k8s-csr-signer)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 
-The Terraform provider enables management of EJBCA resources utilizing HashiCorp Terraform.
+The Terraform provider for EJBCA enables management of EJBCA resources with HashiCorp Terraform.
 
 ## Support for Keyfactor EJBCA Terraform Provider
 
@@ -13,34 +13,47 @@ The Keyfactor EJBCA Terraform Provider is open source and there is **no SLA** fo
 ___
 
 ## Requirements
+### To use
+* [Keyfactor EJBCA](https://www.keyfactor.com/products/ejbca-enterprise/) >= v7.7
+* [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 ### To build
 * [Git](https://git-scm.com/)
 * [Golang](https://golang.org/) >= v1.19
 
-### To use
-* [Keyfactor EJBCA](https://www.keyfactor.com/products/ejbca-enterprise/) >= v7.7
-* [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-
 ## Installation
-### From GitHub (future use)
-- Download the latest release from the [releases page](https://github.com/Keyfactor/terraform-provider-ejbca/releases)
-- Unzip the release
-- Move the binary to a location in your local Terraform plugins directory (typically `$HOME/.terraform.d/plugins` or `%APPDATA%\terraform.d\plugins` on Windows)
-  for more information refer to the [Hashicorp documentation](https://www.terraform.io/docs/cli/config/config-file.html#implied-local-mirror-directories)
-- Run `terraform init` to initialize the provider
+The first step of installing the Keyfactor EJBCA Terraform Provider is to require the provider in your Terraform configuration file.
+```terraform
+terraform {
+  required_providers {
+    ejbca = {
+      source  = "registry.terraform.io/keyfactor-pub/ejbca"
+    }
+  }
+}
+```
+
+### From Terraform Registry
+Run `terraform init` to initialize the provider. Terraform will automatically download the provider and install it in the
+`.terraform` directory in your current working directory.
 
 ### From Source (Mac OS/Linux)
+To build and install the provider from source, clone the repository to your local machine and configure Terraform manually.
+The Makefile takes care of these steps for you by adding a `provider_installation` block to your `~/.terraformrc` file.
+
 ```bash
 git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
 cd terraform-provider-ejbca
-make install
+make local-config install
 ```
+
+###### Be cautious when running `make uninstall-local` as it will remove all custom installation (`provider_installation`) steps in the `~/.terraformrc` file.
 
 ### From Source (Windows)
 ```powershell
 git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
-cd terraform-provider-keyfactor
-go build -o %APPDATA%\terraform.d\plugins\keyfactor.com\keyfactor\ejbca\1.0.3\terraform-provider-ejbca.exe
+cd terraform-provider-ejbca
+go build -o %APPDATA%\terraform.d\plugins\registry.terraform.io\keyfactor-pub\ejbca\1.0.0\terraform-provider-ejbca.exe
+terraform init -upgrade
 ```
 
 ## Using the provider

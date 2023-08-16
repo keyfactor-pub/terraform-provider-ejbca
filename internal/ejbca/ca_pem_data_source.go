@@ -31,9 +31,9 @@ type CaPemDataSourceModel struct {
 	Id    types.String `tfsdk:"id"`
 }
 
-func (d *CaPemDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *CaPemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Data source that provides the PEM encoded CA certificate for the specified CA.",
+		MarkdownDescription: caPemDataSourceMarkdownDescription,
 
 		Attributes: map[string]schema.Attribute{
 			"dn": schema.StringAttribute{
@@ -97,3 +97,10 @@ func (d *CaPemDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
+
+const caPemDataSourceMarkdownDescription = `
+Data source that provides the PEM encoded CA certificate for the specified CA.
+
+## EJBCA API Usage
+* ` + "`" + `GET /v1/ca/{subject_dn}/certificate/download` + "`" + ` - Used to download the CA certificate chain
+`
