@@ -36,16 +36,6 @@ func (c *CertificateContext) createEndEntityContext() *EndEntityContext {
 	}
 }
 
-// CertificateContext has the following methods:
-// - EnrollPkcs10Certificate - Used by certificate_resource
-// - EnrollKeystore - Used by keystore_resource
-// - ReadCertificateContext - Used by certificate_resource
-// - ReadKeystoreContext - Used by keystore_resource
-// - RevokeCertificate - Used by certificate_resource AND keystore_resource
-
-// What the fuck does this do:
-// - ComposeStateFromCertificateResponse
-
 func (c *CertificateContext) EnrollPkcs10Certificate(state *CertificateResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
