@@ -2,6 +2,7 @@ package ejbca
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -27,7 +28,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Metadata(ctx context.Context, re
 
 // AuthorizedEndEntityProfilesDataSourceModel describes the data source data model.
 type AuthorizedEndEntityProfilesDataSourceModel struct {
-	AuthorizedEndEntityProfiles types.Set   `tfsdk:"ejbca_authorized_end_entity_profiles"`
+	AuthorizedEndEntityProfiles types.Set   `tfsdk:"authorized_end_entity_profiles"`
 	Id                          types.Int64 `tfsdk:"id"`
 }
 
@@ -36,7 +37,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ data
 		MarkdownDescription: authorizedEndEntityDataSourceMarkdownDescription,
 
 		Attributes: map[string]schema.Attribute{
-			"ejbca_authorized_end_entity_profiles": schema.SetAttribute{
+			"authorized_end_entity_profiles": schema.SetAttribute{
 				Description: "Set of authorized end entity profiles for the current user.",
 				ElementType: types.StringType,
 				Computed:    true,
@@ -83,7 +84,8 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 		tflog.Error(ctx, "Failed to get list of authorized end entity profiles: "+err.Error())
 
 		detail := ""
-		bodyError, ok := err.(*ejbca.GenericOpenAPIError)
+		var bodyError *ejbca.GenericOpenAPIError
+		ok := errors.As(err, &bodyError)
 		if ok {
 			detail = string(bodyError.Body())
 		}

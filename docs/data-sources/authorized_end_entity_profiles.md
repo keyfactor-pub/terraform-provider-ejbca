@@ -31,7 +31,7 @@ output "aeep" {
 
 ### Read-Only
 
-- `ejbca_authorized_end_entity_profiles` (Set of String) Set of authorized end entity profiles for the current user.
+- `authorized_end_entity_profiles` (Set of String) Set of authorized end entity profiles for the current user.
 - `id` (Number) The ID of the data source.
 
 
