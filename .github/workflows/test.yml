@@ -68,12 +68,19 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      # Place the contents of ${{ secrets.EJBCA_CLIENT_CERT_PATH }} into a file at /tmp/certs/ejbca.pem
+      - run: mkdir -p /tmp/certs && echo "${{ secrets.EJBCA_CLIENT_CERT_PATH }}" > /tmp/certs/ejbca.pem
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
       - env:
+          EJBCA_CLIENT_CERT_PATH: /tmp/certs/ejbca.pem
+          EJBCA_CA_NAME: ${{ secrets.EJBCA_CA_NAME }}
+          EJBCA_CERTIFICATE_PROFILE_NAME: ${{ secrets.EJBCA_CERTIFICATE_PROFILE_NAME }}
+          EJBCA_END_ENTITY_PROFILE_NAME: ${{ secrets.EJBCA_END_ENTITY_PROFILE_NAME }}
+          EJBCA_CERTIFICATE_SUBJECT: ${{ secrets.EJBCA_CERTIFICATE_SUBJECT }}
           TF_ACC: "1"
         run: go test -v -cover ./internal/ejbca/
         timeout-minutes: 10
