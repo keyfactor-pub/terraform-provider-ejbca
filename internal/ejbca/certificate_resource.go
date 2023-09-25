@@ -180,7 +180,7 @@ func (r *CertificateResource) Update(_ context.Context, _ resource.UpdateRequest
 	// Update operation not supported. Force recreation
 	resp.Diagnostics.AddError(
 		"Update operation not supported for EJBCA CertificateResource",
-		fmt.Sprintf("Provider error. This operation shouldn't be called."),
+		"Provider error. This operation shouldn't be called.",
 	)
 }
 

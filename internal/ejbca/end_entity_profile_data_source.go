@@ -2,6 +2,7 @@ package ejbca
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -106,7 +107,8 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 		tflog.Error(ctx, "Failed to retrieve data for end entity profile: "+err.Error())
 
 		detail := ""
-		bodyError, ok := err.(*ejbca.GenericOpenAPIError)
+		var bodyError *ejbca.GenericOpenAPIError
+		ok := errors.As(err, &bodyError)
 		if ok {
 			detail = string(bodyError.Body())
 		}
@@ -154,16 +156,16 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 
 func removeDuplicates(list []string) []string {
 	keys := make(map[string]bool)
-	list = []string{}
+	var resultList []string
 
 	for _, entry := range list {
-		if _, value := keys[entry]; !value {
+		if _, exists := keys[entry]; !exists {
 			keys[entry] = true
-			list = append(list, entry)
+			resultList = append(resultList, entry)
 		}
 	}
 
-	return list
+	return resultList
 }
 
 const endEntityProfileDataSourceMarkdownDescription = `
