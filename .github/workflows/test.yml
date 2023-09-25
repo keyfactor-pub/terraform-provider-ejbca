@@ -84,9 +84,3 @@ jobs:
           TF_ACC: "1"
         run: go test -v -cover ./internal/ejbca/
         timeout-minutes: 10
-
-EJBCA_CA_NAME=ManagementCA;EJBCA_CERTIFICATE_PROFILE_NAME=tlsServerAuth;EJBCA_CERTIFICATE_SUBJECT=CN=ejbca_tf_testacc_remote,OU=IT;EJBCA_CLIENT_CERT_PATH=/Users/hroszell/Library/CloudStorage/OneDrive-Keyfactor/Documents/coding/EJBCA/certs/adminHaydenRoszell:
-  pem;EJBCA_END_ENTITY_PROFILE_NAME=haydenEndEntity;EJBCA_HOSTNAME=https://it-ca01:
-    pkihosted-dev:
-      c2company:
-        com/ejbca/;TF_ACC=1:
