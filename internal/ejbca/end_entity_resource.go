@@ -201,7 +201,7 @@ func (r *EndEntityResource) Update(_ context.Context, _ resource.UpdateRequest, 
 	// Update operation not supported. Force recreation
 	resp.Diagnostics.AddError(
 		"Update operation not supported for EJBCA EndEntityResource",
-		fmt.Sprintf("Provider error. This operation shouldn't be called."),
+		"Provider error. This operation shouldn't be called.",
 	)
 }
 

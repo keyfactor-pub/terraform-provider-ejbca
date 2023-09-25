@@ -91,7 +91,7 @@ func (c *CertificateContext) ReadCertificateContext(state *CertificateResourceMo
 	if len(searchResult.Certificates) == 0 {
 		diags.AddError(
 			"EJBCA didn't return any certificates",
-			fmt.Sprintf("EJBCA API returned no certificates after enrollment."),
+			"EJBCA API returned no certificates after enrollment.",
 		)
 		return diags
 	}
@@ -205,7 +205,7 @@ func (c *CertificateContext) ComposeStateFromKeystoreResponse(certificate *ejbca
 			fmt.Sprintf("Failed to parse certificate: %s", err.Error()),
 		)
 		return diags
-	} else if leaf == nil || len(leaf) == 0 {
+	} else if len(leaf) == 0 {
 		diags.AddError(
 			"Failed to parse certificate",
 			fmt.Sprintf("Failed to parse certificate: %s", "No certificate returned from EJBCA"),
@@ -238,8 +238,10 @@ func (c *CertificateContext) ComposeStateFromKeystoreResponse(certificate *ejbca
 	pemLeafAndChain := compileCertificatesToPemString(c.ctx, leafAndChain)
 
 	// Now handle the private key
-	// TODO this will destroy everything
-	state.Key = types.StringValue(key.(string))
+	keyString, ok := key.(string)
+	if ok {
+		state.Key = types.StringValue(keyString)
+	}
 
 	// Set the ID of the resource to the certificate serial number
 	state.Id = types.StringValue(certificate.GetSerialNumber())
@@ -270,7 +272,7 @@ func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ej
 			fmt.Sprintf("Failed to parse certificate: %s", err.Error()),
 		)
 		return diags
-	} else if leaf == nil || len(leaf) == 0 {
+	} else if len(leaf) == 0 {
 		diags.AddError(
 			"Failed to parse certificate",
 			fmt.Sprintf("Failed to parse certificate: %s", "No certificate returned from EJBCA"),
@@ -443,7 +445,7 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, pa
 		// Copy the private key into the privateKey variable
 		privateKey = key
 	} else {
-		return nil, nil, errors.New(fmt.Sprintf("ejbca returned unknown certificate format: %s. Expected PEM, DER, or PKCS12", ejbcaCert.GetResponseFormat()))
+		return nil, nil, fmt.Errorf("ejbca returned unknown certificate format: %s. Expected PEM, DER, or PKCS12", ejbcaCert.GetResponseFormat())
 	}
 
 	certs, err := x509.ParseCertificates(certBytes)

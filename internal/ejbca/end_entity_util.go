@@ -2,7 +2,6 @@ package ejbca
 
 import (
 	"context"
-	"fmt"
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -88,7 +87,7 @@ func (c *EndEntityContext) ReadEndEntityContext(state *EndEntityResourceModel) d
 	if len(searchResult.EndEntities) == 0 {
 		diags.AddError(
 			"EJBCA didn't return any end entities with username "+username,
-			fmt.Sprintf("EJBCA API returned no end entities."),
+			"EJBCA API returned no end entities.",
 		)
 		return diags
 	}
@@ -117,12 +116,11 @@ func (c *EndEntityContext) ReadEndEntityContext(state *EndEntityResourceModel) d
 		state.Status = types.StringValue(*status)
 	}
 
-	// TODO need to find creative way to retrieve EndEntityPassword, CaName, CertificateProfileName, EndEntityProfileName, and AccountBindingId
+	// Still need to find creative way to retrieve EndEntityPassword, CaName, CertificateProfileName, EndEntityProfileName, and AccountBindingId
 
 	return diags
 }
 
-// UpdateEndEntityStatus sets the token
 func (c *EndEntityContext) UpdateEndEntityStatus(state *EndEntityResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 

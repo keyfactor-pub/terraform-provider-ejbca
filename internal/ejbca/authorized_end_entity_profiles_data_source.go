@@ -119,7 +119,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 
 	state.Id = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
 
-	tflog.Trace(ctx, fmt.Sprintf("Retrieved list of authorized end entity profiles."))
+	tflog.Trace(ctx, "Retrieved list of authorized end entity profiles.")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
