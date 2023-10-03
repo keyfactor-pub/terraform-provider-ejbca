@@ -75,7 +75,7 @@ jobs:
           terraform_wrapper: false
       - run: go mod download
       - env:
-          EJBCA_HOSTNAME: ${{ vars.EJBCA_HOSTNAME }}
+          EJBCA_HOSTNAME: ${{ secrets.EJBCA_HOSTNAME }}
           EJBCA_CLIENT_CERT_PATH: /tmp/certs/ejbca.pem
           EJBCA_CA_NAME: ${{ vars.EJBCA_CA_NAME }}
           EJBCA_CERTIFICATE_PROFILE_NAME: ${{ vars.EJBCA_CERTIFICATE_PROFILE_NAME }}
