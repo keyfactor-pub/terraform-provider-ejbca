@@ -47,6 +47,6 @@ terraform init -upgrade
 
 ## Using the provider
 
-* [Documentation](docs/index.md)
-* [Examples](examples)
+* [Documentation](index.md)
+* [Examples](../examples)
 
