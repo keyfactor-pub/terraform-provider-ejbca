@@ -17,11 +17,11 @@ The Terraform provider for EJBCA enables management of EJBCA resources with Hash
 
 ## Get Started
 
-To get started with the Terraform Provider for Keyfactor EJBCA, see [Getting Started](docs/getting-started.md). 
+To get started with the Terraform Provider for Keyfactor EJBCA, see [Getting Started](getting-started.md). 
 
 ### System Requirements
 
-For requirements to build and to use the Terraform Provider for Keyfactor EJBCA, see [System Requirements](docs/getting-started.md#system-requirements). 
+For requirements to build and to use the Terraform Provider for Keyfactor EJBCA, see [System Requirements](getting-started.md#system-requirements). 
 
 ## Community Support
 In the [Keyfactor Community](https://www.keyfactor.com/community/), we welcome contributions. 
