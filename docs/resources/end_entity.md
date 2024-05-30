@@ -56,5 +56,3 @@ resource "ejbca_end_entity" "test_end_entity" {
 
 - `id` (String) Username of the created end entity
 - `status` (String) Status of the created end entity
-
-

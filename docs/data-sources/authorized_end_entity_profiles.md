@@ -33,5 +33,3 @@ output "aeep" {
 
 - `authorized_end_entity_profiles` (Set of String) Set of authorized end entity profiles for the current user.
 - `id` (Number) The ID of the data source.
-
-

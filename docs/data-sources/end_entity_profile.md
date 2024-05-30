@@ -41,5 +41,3 @@ output "eep" {
 - `id` (String) Valid name of the end entity profile designated by the `end_entity_profile_name` attribute.
 - `subject_alternative_name_fields` (List of String) List of subject alternative name fields that are available for this end entity profile.
 - `subject_distinguished_name_fields` (Set of String) List of subject distinguished name fields that are required for this end entity profile.
-
-

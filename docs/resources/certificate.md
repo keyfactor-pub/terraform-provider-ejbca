@@ -75,5 +75,3 @@ resource "ejbca_certificate" "Certificate" {
 - `certificate` (String) PEM encoded X509v3 certificate and chain
 - `id` (String) Serial number of the certificate
 - `issuer_dn` (String) Distinguished name of the certificate issuer
-
-
