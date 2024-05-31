@@ -20,7 +20,7 @@ jobs:
       - name: Extract Version Tag
         id: extract_version
         run: /bin/bash -c 'echo ::set-output name=VERSION::$(echo ${GITHUB_REF##*/} | cut -c2-)'
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           # Allow goreleaser to access older tag information.
           fetch-depth: 0
