@@ -38,5 +38,3 @@ output "ca" {
 
 - `ca_pem` (String) PEM encoded CA certificate for the specified CA.
 - `id` (String) The ID of the data source.
-
-
