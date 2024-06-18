@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -22,14 +23,14 @@ type AuthorizedEndEntityProfilesDataSource struct {
 	client *ejbca.APIClient
 }
 
-func (d *AuthorizedEndEntityProfilesDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *AuthorizedEndEntityProfilesDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_authorized_end_entity_profiles"
 }
 
 // AuthorizedEndEntityProfilesDataSourceModel describes the data source data model.
 type AuthorizedEndEntityProfilesDataSourceModel struct {
 	AuthorizedEndEntityProfiles types.Set   `tfsdk:"authorized_end_entity_profiles"`
-	Id                          types.Int64 `tfsdk:"id"`
+	ID                          types.Int64 `tfsdk:"id"`
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -50,7 +51,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ data
 	}
 }
 
-func (d *AuthorizedEndEntityProfilesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *AuthorizedEndEntityProfilesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -81,7 +82,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 	}
 
 	// Get the list of authorized end entity profiles for the current user.
-	authorizedEndEntityProfiles, _, err := d.client.V2EndentityApi.GetAuthorizedEndEntityProfiles(ctx).Execute()
+	authorizedEndEntityProfiles, httpResponse, err := d.client.V2EndentityApi.GetAuthorizedEndEntityProfiles(ctx).Execute()
 	if err != nil {
 		tflog.Error(ctx, "Failed to get list of authorized end entity profiles: "+err.Error())
 
@@ -97,6 +98,9 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 			fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
 		)
 		return
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	// Create list of strings from the authorized end entity profile names
@@ -119,7 +123,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 		return
 	}
 
-	state.Id = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
+	state.ID = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
 
 	tflog.Trace(ctx, "Retrieved list of authorized end entity profiles.")
 

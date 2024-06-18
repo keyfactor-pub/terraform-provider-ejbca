@@ -1,15 +1,16 @@
 package ejbca
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccAuthorizedEndEntityProfilesDataSource(t *testing.T) {
 	config := getAccTestConfig(t)
-    if !config.isEnterprise {
-        t.Skip("Skipping Authorized End Entity Profile Data Source Test since connected instance was not flagged as Enterprise")
-    }
+	if !config.isEnterprise {
+		t.Skip("Skipping Authorized End Entity Profile Data Source Test since connected instance was not flagged as Enterprise")
+	}
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

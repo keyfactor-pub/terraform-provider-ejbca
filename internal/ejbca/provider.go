@@ -62,12 +62,12 @@ type CertAuthProviderModel struct {
 	ClientKeyPath  types.String `tfsdk:"client_key_path"`
 }
 
-func (p *Provider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+func (p *Provider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "ejbca"
 	resp.Version = p.version
 }
 
-func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *Provider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: providerMarkdownDescription,
 		Blocks: map[string]schema.Block{
@@ -143,12 +143,8 @@ func (p *Provider) newAuthenticator(ctx context.Context, configModel ProviderMod
 			return nil, diags
 		}
 
-		blocks, err := decodePEMBytes(caChainBytes)
-		if err != nil {
-			diags.AddError("Failed to decode PEM blocks", "Failed to decode PEM blocks: "+err.Error())
-			return nil, diags
-		}
-		if len(blocks) <= 0 {
+		blocks := decodePEMBytes(caChainBytes)
+		if len(blocks) == 0 {
 			diags.AddError("Didn't find certificate in file", "Didn't find certificate in file at path "+configModel.CaCertPath.ValueString())
 			return nil, diags
 		}
@@ -411,14 +407,14 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 	resp.ResourceData = client
 }
 
-func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *Provider) Resources(context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewCertificateResource,
 		NewEndEntityResource,
 	}
 }
 
-func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *Provider) DataSources(context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewEndEntityProfileDataSource,
 		NewAuthorizedEndEntityProfilesDataSource,

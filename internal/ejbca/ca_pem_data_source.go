@@ -3,6 +3,7 @@ package ejbca
 import (
 	"context"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,14 +22,14 @@ type CaPemDataSource struct {
 	client *ejbca.APIClient
 }
 
-func (d *CaPemDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *CaPemDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_ca_pem"
 }
 
 type CaPemDataSourceModel struct {
 	Dn    types.String `tfsdk:"dn"`
 	CaPem types.String `tfsdk:"ca_pem"`
-	Id    types.String `tfsdk:"id"`
+	ID    types.String `tfsdk:"id"`
 }
 
 func (d *CaPemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -52,7 +53,7 @@ func (d *CaPemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 	}
 }
 
-func (d *CaPemDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *CaPemDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -93,7 +94,7 @@ func (d *CaPemDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	state.CaPem = types.StringValue(compileCertificatesToPemString(ctx, chain))
-	state.Id = types.StringValue(fmt.Sprintf("%X", chain[0].SerialNumber))
+	state.ID = types.StringValue(fmt.Sprintf("%X", chain[0].SerialNumber))
 
 	tflog.Debug(ctx, "Retrieved CA PEM for CA with DN "+state.Dn.ValueString())
 

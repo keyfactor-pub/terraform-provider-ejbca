@@ -2,9 +2,10 @@ package ejbca
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"os"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 type endEntityTestCase struct {
@@ -17,10 +18,10 @@ type endEntityTestCase struct {
 }
 
 func TestAccEndEntityResource(t *testing.T) {
-    config := getAccTestConfig(t)
-    if !config.isEnterprise {
-        t.Skip("Skipping End Entity Resource test since connected instance was not flagged as Enterprise")
-    }
+	config := getAccTestConfig(t)
+	if !config.isEnterprise {
+		t.Skip("Skipping End Entity Resource test since connected instance was not flagged as Enterprise")
+	}
 
 	rand, err := generateRandomString(20)
 	if err != nil {

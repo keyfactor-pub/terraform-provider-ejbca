@@ -3,6 +3,7 @@ package ejbca
 import (
 	"context"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -34,7 +35,7 @@ type KeystoreResource struct {
 }
 
 type KeystoreResourceModel struct {
-	Id                types.String `tfsdk:"id"`
+	ID                types.String `tfsdk:"id"`
 	EndEntityName     types.String `tfsdk:"end_entity_name"`
 	EndEntityPassword types.String `tfsdk:"end_entity_password"`
 	KeyAlg            types.String `tfsdk:"key_alg"`
@@ -189,7 +190,7 @@ func (r *KeystoreResource) Delete(ctx context.Context, req resource.DeleteReques
 
 	// Extract issuer DN and certificate serial number from state
 	issuerDn := state.IssuerDn.ValueString()
-	certificateSerialNumber := state.Id.ValueString()
+	certificateSerialNumber := state.ID.ValueString()
 
 	// Revoke certificate
 	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).RevokeCertificate(issuerDn, certificateSerialNumber)...)

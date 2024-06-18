@@ -2,6 +2,7 @@ package ejbca
 
 import (
 	"context"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -39,13 +40,16 @@ func (c *EndEntityContext) CreateEndEntity(state *EndEntityResourceModel) diag.D
 		CertificateProfileName: state.CertificateProfileName.ValueStringPointer(),
 		EndEntityProfileName:   state.EndEntityProfileName.ValueStringPointer(),
 		Token:                  state.Token.ValueStringPointer(),
-		AccountBindingId:       state.AccountBindingId.ValueStringPointer(),
+		AccountBindingId:       state.AccountBindingID.ValueStringPointer(),
 		AdditionalProperties:   nil,
 	}
 
-	_, err := c.client.V1EndentityApi.Add(c.ctx).AddEndEntityRestRequest(request).Execute()
+	httpResponse, err := c.client.V1EndentityApi.Add(c.ctx).AddEndEntityRestRequest(request).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to create new End Entity")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	tflog.Info(c.ctx, "Created new End Entity with username "+state.EndEntityName.ValueString())
@@ -79,9 +83,12 @@ func (c *EndEntityContext) ReadEndEntityContext(state *EndEntityResourceModel) d
 	}
 	searchRequest.SetMaxNumberOfResults(1)
 
-	searchResult, _, err := c.client.V1EndentityApi.Search(c.ctx).SearchEndEntitiesRestRequest(searchRequest).Execute()
+	searchResult, httpResponse, err := c.client.V1EndentityApi.Search(c.ctx).SearchEndEntitiesRestRequest(searchRequest).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to query EJBCA for end entity")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	if len(searchResult.EndEntities) == 0 {
@@ -94,7 +101,7 @@ func (c *EndEntityContext) ReadEndEntityContext(state *EndEntityResourceModel) d
 	endEntity := searchResult.EndEntities[0]
 
 	// Set the ID to the EndEntityName (username)
-	state.Id = types.StringValue(endEntity.GetUsername())
+	state.ID = types.StringValue(endEntity.GetUsername())
 
 	// Set the rest of the state
 	if endEntityName, ok := endEntity.GetUsernameOk(); ok && *endEntityName != "" {
@@ -131,9 +138,12 @@ func (c *EndEntityContext) UpdateEndEntityStatus(state *EndEntityResourceModel) 
 		Status:               state.Status.ValueStringPointer(),
 		AdditionalProperties: nil,
 	}
-	_, err := c.client.V1EndentityApi.Setstatus(c.ctx, state.EndEntityName.ValueString()).SetEndEntityStatusRestRequest(request).Execute()
+	httpResponse, err := c.client.V1EndentityApi.Setstatus(c.ctx, state.EndEntityName.ValueString()).SetEndEntityStatusRestRequest(request).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to update End Entity status")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	// Update the state with the new End Entity's information
@@ -150,9 +160,12 @@ func (c *EndEntityContext) DeleteEndEntity(state *EndEntityResourceModel) diag.D
 
 	username := state.EndEntityName.ValueString()
 
-	_, err := c.client.V1EndentityApi.Delete(c.ctx, username).Execute()
+	httpResponse, err := c.client.V1EndentityApi.Delete(c.ctx, username).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to delete End Entity with username "+username)
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	tflog.Info(c.ctx, "Deleted End Entity with username "+username)

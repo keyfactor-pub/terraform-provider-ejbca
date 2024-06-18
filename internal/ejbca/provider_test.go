@@ -1,37 +1,31 @@
 package ejbca
 
 import (
-	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
-	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
-
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
 
-type fakeEjbcaAuthenticator struct {
-	client *http.Client
-}
+// type fakeEjbcaAuthenticator struct {
+// 	client *http.Client
+// }
 
-// GetHTTPClient implements ejbcaclient.Authenticator
-func (f *fakeEjbcaAuthenticator) GetHTTPClient() (*http.Client, error) {
-	return f.client, nil
-}
+// // GetHTTPClient implements ejbcaclient.Authenticator.
+// func (f *fakeEjbcaAuthenticator) GetHTTPClient() (*http.Client, error) {
+// 	return f.client, nil
+// }
 
-type fakeClientConfig struct {
-	testServer *httptest.Server
-}
+// type fakeClientConfig struct {
+// 	testServer *httptest.Server
+// }
 
-func (f *fakeClientConfig) newFakeAuthenticator(_ context.Context, _ ProviderModel, _ diag.Diagnostics) ejbca.Authenticator {
-	return &fakeEjbcaAuthenticator{
-		client: f.testServer.Client(),
-	}
-}
+// func (f *fakeClientConfig) newFakeAuthenticator(_ context.Context, _ ProviderModel, _ diag.Diagnostics) ejbca.Authenticator {
+// 	return &fakeEjbcaAuthenticator{
+// 		client: f.testServer.Client(),
+// 	}
+// }
 
 // testAccProtoV6ProviderFactories are used to instantiate a ejbca during
 // acceptance testing. The factory function will be invoked for every Terraform
@@ -50,7 +44,7 @@ type ejbcaAccTestConfig struct {
 	endEntityProfileName   string
 	certificateProfileName string
 	certificateSubject     string
-    isEnterprise           bool
+	isEnterprise           bool
 }
 
 func getAccTestConfig(t *testing.T) ejbcaAccTestConfig {
@@ -66,6 +60,11 @@ func getAccTestConfig(t *testing.T) ejbcaAccTestConfig {
 		t.Fatal("EJBCA_CLIENT_CERT_PATH must be set for acceptance tests")
 	} else {
 		config.clientCertPath = v
+	}
+	if v := os.Getenv("EJBCA_CLIENT_CERT_KEY_PATH"); v == "" {
+		t.Fatal("EJBCA_CLIENT_CERT_KEY_PATH must be set for acceptance tests")
+	} else {
+		config.clientKeyPath = v
 	}
 	if v := os.Getenv("EJBCA_CERTIFICATE_SUBJECT"); v == "" {
 		t.Fatal("EJBCA_CERTIFICATE_SUBJECT must be set for acceptance tests")
@@ -92,9 +91,9 @@ func getAccTestConfig(t *testing.T) ejbcaAccTestConfig {
 	} else {
 		config.caDn = v
 	}
-    if v := os.Getenv("EJBCA_IS_ENTERPRISE"); v != "" {
-        config.isEnterprise = true
-    }
+	if v := os.Getenv("EJBCA_IS_ENTERPRISE"); v != "" {
+		config.isEnterprise = true
+	}
 	return config
 }
 

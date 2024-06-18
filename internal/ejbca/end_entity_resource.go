@@ -3,6 +3,7 @@ package ejbca
 import (
 	"context"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -28,7 +29,7 @@ type EndEntityResource struct {
 }
 
 type EndEntityResourceModel struct {
-	Id                     types.String `tfsdk:"id"`
+	ID                     types.String `tfsdk:"id"`
 	EndEntityName          types.String `tfsdk:"end_entity_name"`
 	EndEntityPassword      types.String `tfsdk:"end_entity_password"` // Not returned
 	SubjectDn              types.String `tfsdk:"subject_dn"`
@@ -38,7 +39,7 @@ type EndEntityResourceModel struct {
 	CertificateProfileName types.String `tfsdk:"certificate_profile_name"` // Not returned
 	EndEntityProfileName   types.String `tfsdk:"end_entity_profile_name"`  // Not returned
 	Token                  types.String `tfsdk:"token"`
-	AccountBindingId       types.String `tfsdk:"account_binding_id"` // Not returned
+	AccountBindingID       types.String `tfsdk:"account_binding_id"` // Not returned
 	Status                 types.String `tfsdk:"status"`
 	// TODO extension_data
 }

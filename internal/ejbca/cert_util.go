@@ -55,12 +55,12 @@ func (c *CertificateContext) EnrollPkcs10Certificate(state *CertificateResourceM
 	}
 
 	tflog.Trace(c.ctx, "Parsing CSR from request")
-    blocks, err := decodePEMBytes([]byte(state.CertificateSigningRequest.ValueString()))
-    if len(blocks) != 1 {
-        diags.AddError("Failed to parse CSR", fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks)))
-        tflog.Error(c.ctx, "Failed to parse CSR", map[string]any{"err": fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks))})
-        return diags
-    }
+	blocks := decodePEMBytes([]byte(state.CertificateSigningRequest.ValueString()))
+	if len(blocks) != 1 {
+		diags.AddError("Failed to parse CSR", fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks)))
+		tflog.Error(c.ctx, "Failed to parse CSR", map[string]any{"err": fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks))})
+		return diags
+	}
 	parsedCsr, err := x509.ParseCertificateRequest(blocks[0].Bytes)
 	if err != nil {
 		diags.AddError("Failed to parse CSR", err.Error())
@@ -95,14 +95,17 @@ func (c *CertificateContext) EnrollPkcs10Certificate(state *CertificateResourceM
 	config.SetUsername(endEntityName)
 	config.SetPassword(state.EndEntityPassword.ValueString())
 	config.SetIncludeChain(true)
-    config.SetAccountBindingId(state.AccountBindingId.ValueString())
+	config.SetAccountBindingId(state.AccountBindingID.ValueString())
 
 	tflog.Debug(c.ctx, "Prepared EJBCA enrollment request", map[string]any{"subject": parsedCsr.Subject.String(), "uriSANs": parsedCsr.URIs, "endEntityName": endEntityName, "caName": config.GetCertificateAuthorityName(), "certificateProfileName": config.CertificateProfileName, "endEntityProfileName": config.EndEntityProfileName, "accountBindingId": config.GetAccountBindingId()})
 
 	// Enroll the PKCS#10 CSR using the EJBCA API
-	certificate, _, err := c.client.V1CertificateApi.EnrollPkcs10Certificate(c.ctx).EnrollCertificateRestRequest(config).Execute()
+	certificate, httpResponse, err := c.client.V1CertificateApi.EnrollPkcs10Certificate(c.ctx).EnrollCertificateRestRequest(config).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to enroll PKCS#10 CSR")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	tflog.Debug(c.ctx, "Enrolled certificate using PKCS#10 enrollment with serial number: "+certificate.GetSerialNumber())
@@ -174,7 +177,7 @@ func (c *CertificateContext) getEndEntityName(defaultEndEntityName string, csr *
 func (c *CertificateContext) ReadCertificateContext(state *CertificateResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
-	certificateSerialNumber := state.Id.ValueString()
+	certificateSerialNumber := state.ID.ValueString()
 
 	criteria := ejbca.SearchCertificateCriteriaRestRequest{
 		Property:             ptr("QUERY"),
@@ -189,9 +192,12 @@ func (c *CertificateContext) ReadCertificateContext(state *CertificateResourceMo
 		AdditionalProperties: nil,
 	}
 
-	searchResult, _, err := c.client.V1CertificateApi.SearchCertificates(c.ctx).SearchCertificatesRestRequest(certSearch).Execute()
+	searchResult, httpResponse, err := c.client.V1CertificateApi.SearchCertificates(c.ctx).SearchCertificatesRestRequest(certSearch).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to query EJBCA for certificate")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	if len(searchResult.Certificates) == 0 {
@@ -245,9 +251,12 @@ func (c *CertificateContext) EnrollKeystore(state *KeystoreResourceModel) diag.D
 		AdditionalProperties: nil,
 	}
 
-	certificate, _, err := c.client.V1CertificateApi.EnrollKeystore(c.ctx).KeyStoreRestRequest(request).Execute()
+	certificate, httpResponse, err := c.client.V1CertificateApi.EnrollKeystore(c.ctx).KeyStoreRestRequest(request).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to enroll Keystore")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	diags.Append(c.ComposeStateFromKeystoreResponse(certificate, state)...)
@@ -271,7 +280,7 @@ func (c *CertificateContext) ReadKeystoreContext(state *KeystoreResourceModel) d
 	}
 
 	// Copy the certificate state to the keystore state
-	state.Id = certificateState.Id
+	state.ID = certificateState.ID
 	state.EndEntityName = certificateState.EndEntityName
 	state.Certificate = certificateState.Certificate
 	state.IssuerDn = certificateState.IssuerDn
@@ -282,9 +291,12 @@ func (c *CertificateContext) ReadKeystoreContext(state *KeystoreResourceModel) d
 func (c *CertificateContext) RevokeCertificate(issuerDn string, certificateSerialNumber string) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
-	message, _, err := c.client.V1CertificateApi.RevokeCertificate(c.ctx, issuerDn, certificateSerialNumber).Reason("CESSATION_OF_OPERATION").Execute()
+	message, httpResponse, err := c.client.V1CertificateApi.RevokeCertificate(c.ctx, issuerDn, certificateSerialNumber).Reason("CESSATION_OF_OPERATION").Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to revoke certificate with serial number \""+certificateSerialNumber+"\"")
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	tflog.Info(c.ctx, "Revoked certificate with serial number \""+certificateSerialNumber+"\": "+*message.Message)
@@ -348,7 +360,7 @@ func (c *CertificateContext) ComposeStateFromKeystoreResponse(certificate *ejbca
 	}
 
 	// Set the ID of the resource to the certificate serial number
-	state.Id = types.StringValue(certificate.GetSerialNumber())
+	state.ID = types.StringValue(certificate.GetSerialNumber())
 	state.Certificate = types.StringValue(pemLeafAndChain)
 	state.IssuerDn = types.StringValue(issuerDn)
 
@@ -409,7 +421,7 @@ func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ej
 	pemLeafAndChain := compileCertificatesToPemString(c.ctx, leafAndChain)
 
 	// Set the ID of the resource to the certificate serial number
-	state.Id = types.StringValue(certificate.GetSerialNumber())
+	state.ID = types.StringValue(certificate.GetSerialNumber())
 	state.Certificate = types.StringValue(pemLeafAndChain)
 	state.IssuerDn = types.StringValue(issuerDn)
 
@@ -430,6 +442,7 @@ func (c *CertificateContext) DownloadCaChain(issuerDn string) ([]*x509.Certifica
 	if err != nil {
 		return nil, err
 	}
+	defer caResp.Body.Close()
 
 	encodedBytes, err := io.ReadAll(caResp.Body) // EJBCA returns CA chain as a single PEM file
 	if err != nil {
@@ -480,14 +493,15 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, pa
 	var err error
 	var privateKey interface{}
 
-	if ejbcaCert.GetResponseFormat() == "PEM" {
+	switch {
+	case ejbcaCert.GetResponseFormat() == "PEM":
 		// Extract the certificate from the PEM string
 		block, _ := pem.Decode([]byte(ejbcaCert.GetCertificate()))
 		if block == nil {
 			return nil, nil, errors.New("failed to parse certificate PEM")
 		}
 		certBytes = block.Bytes
-	} else if ejbcaCert.GetResponseFormat() == "DER" {
+	case ejbcaCert.GetResponseFormat() == "DER":
 		// Depending on how the EJBCA API was called, the certificate will either be single b64 encoded or double b64 encoded
 		// Try to decode the certificate twice, but don't exit if we fail here. The certificate is decoded later which
 		// will give more insight into the failure.
@@ -520,7 +534,7 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, pa
 				certBytes = append(certBytes, chainCertBytes...)
 			}
 		}
-	} else if ejbcaCert.GetResponseFormat() == "PKCS12" {
+	case ejbcaCert.GetResponseFormat() == "PKCS12":
 		var pkcs12Bytes []byte
 		pkcs12Bytes, err = base64.StdEncoding.DecodeString(ejbcaCert.GetCertificate())
 		if err != nil {
@@ -528,7 +542,7 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, pa
 		}
 
 		// Temporarily put pkcs12Bytes into a file for testing
-		err = os.WriteFile("pkcs12.p12", pkcs12Bytes, 0644)
+		err = os.WriteFile("pkcs12.p12", pkcs12Bytes, 0600)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -548,7 +562,7 @@ func getCertificatesFromEjbcaObject(ejbcaCert *ejbca.CertificateRestResponse, pa
 
 		// Copy the private key into the privateKey variable
 		privateKey = key
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("ejbca returned unknown certificate format: %s. Expected PEM, DER, or PKCS12", ejbcaCert.GetResponseFormat())
 	}
 
@@ -578,21 +592,20 @@ func compileCertificatesToPemString(ctx context.Context, certificates []*x509.Ce
 	return pemBuilder.String()
 }
 
-func decodePEMBytes(buf []byte) ([]*pem.Block, error) {
+func decodePEMBytes(buf []byte) []*pem.Block {
 	var certificates []*pem.Block
 	var block *pem.Block
 	for {
 		block, buf = pem.Decode(buf)
 		if block == nil {
 			break
-		} else {
-			certificates = append(certificates, block)
 		}
+		certificates = append(certificates, block)
 	}
-	return certificates, nil
+	return certificates
 }
 
-// generateRandomString generates a random string of the specified length
+// generateRandomString generates a random string of the specified length.
 func generateRandomString(length int) (string, error) {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]rune, length)

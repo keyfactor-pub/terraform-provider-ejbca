@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -31,14 +32,14 @@ type EndEntityProfileDataSourceModel struct {
 	SubjectAlternativeNameFields   types.List   `tfsdk:"subject_alternative_name_fields"`
 	AvailableCertificateProfiles   types.Set    `tfsdk:"available_certificate_profiles"`
 	AvailableCAs                   types.Set    `tfsdk:"available_cas"`
-	Id                             types.String `tfsdk:"id"`
+	ID                             types.String `tfsdk:"id"`
 }
 
-func (d *EndEntityProfileDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *EndEntityProfileDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_end_entity_profile"
 }
 
-func (d *EndEntityProfileDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *EndEntityProfileDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: endEntityProfileDataSourceMarkdownDescription,
 
@@ -75,7 +76,7 @@ func (d *EndEntityProfileDataSource) Schema(ctx context.Context, req datasource.
 	}
 }
 
-func (d *EndEntityProfileDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *EndEntityProfileDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -107,7 +108,7 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 	}
 
 	// Get the end entity profile from EJBCA
-	profileData, _, err := d.client.V2EndentityApi.Profile(ctx, state.EndEntityProfileName.ValueString()).Execute()
+	profileData, httpResponse, err := d.client.V2EndentityApi.Profile(ctx, state.EndEntityProfileName.ValueString()).Execute()
 	if err != nil {
 		tflog.Error(ctx, "Failed to retrieve data for end entity profile: "+err.Error())
 
@@ -123,6 +124,9 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 			fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
 		)
 		return
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	// Set the subject distinguished name fields
@@ -151,7 +155,7 @@ func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.Re
 	}
 
 	// Set the ID
-	state.Id = types.StringValue(*profileData.EndEntityProfileName)
+	state.ID = types.StringValue(*profileData.EndEntityProfileName)
 
 	tflog.Trace(ctx, fmt.Sprintf("Retrieved data for end entity profile called %s", *profileData.EndEntityProfileName))
 

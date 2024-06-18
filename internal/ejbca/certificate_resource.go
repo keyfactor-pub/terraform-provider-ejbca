@@ -3,6 +3,8 @@ package ejbca
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -11,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"os"
 )
 
 // Ensure ejbca defined types fully satisfy framework interfaces.
@@ -29,7 +30,7 @@ type CertificateResource struct {
 
 // CertificateResourceModel describes the resource data model.
 type CertificateResourceModel struct {
-	Id                        types.String `tfsdk:"id"`
+	ID                        types.String `tfsdk:"id"`
 	CertificateSigningRequest types.String `tfsdk:"certificate_signing_request"`
 	CertificateProfileName    types.String `tfsdk:"certificate_profile_name"`
 	EndEntityProfileName      types.String `tfsdk:"end_entity_profile_name"`
@@ -38,14 +39,14 @@ type CertificateResourceModel struct {
 	EndEntityPassword         types.String `tfsdk:"end_entity_password"`
 	Certificate               types.String `tfsdk:"certificate"`
 	IssuerDn                  types.String `tfsdk:"issuer_dn"`
-    AccountBindingId          types.String `tfsdk:"account_binding_id"`
+	AccountBindingID          types.String `tfsdk:"account_binding_id"`
 }
 
 func (r *CertificateResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_certificate"
 }
 
-func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *CertificateResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	tflog.Debug(ctx, "Returning schema for CertificateResource")
 	resp.Schema = schema.Schema{
 		MarkdownDescription: certificateResourceMarkdownDescription,
@@ -93,13 +94,13 @@ func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaReq
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-            "account_binding_id": schema.StringAttribute{
-                Optional: true,
-                Description: "An account binding ID in EJBCA to associate with issued certificates.",
-                PlanModifiers: []planmodifier.String{
-                    stringplanmodifier.RequiresReplace(),
-                },
-            },
+			"account_binding_id": schema.StringAttribute{
+				Optional:    true,
+				Description: "An account binding ID in EJBCA to associate with issued certificates.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -160,7 +161,7 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 
 	// Save the certificate to the filesystem for debugging purposes.
 	filename := fmt.Sprintf("%s.pem", state.EndEntityName.ValueString())
-	err := os.WriteFile(filename, []byte(state.Certificate.ValueString()), 0644)
+	err := os.WriteFile(filename, []byte(state.Certificate.ValueString()), 0600)
 	if err != nil {
 		// We don't care if the write fails; just log a warning.
 		tflog.Warn(ctx, fmt.Sprintf("Failed to write certificate to %s: %v", filename, err))
@@ -225,7 +226,7 @@ func (r *CertificateResource) Delete(ctx context.Context, req resource.DeleteReq
 
 	// Extract issuer DN and certificate serial number from state
 	issuerDn := state.IssuerDn.ValueString()
-	certificateSerialNumber := state.Id.ValueString()
+	certificateSerialNumber := state.ID.ValueString()
 
 	// Revoke certificate
 	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).RevokeCertificate(issuerDn, certificateSerialNumber)...)
