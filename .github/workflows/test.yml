@@ -62,23 +62,21 @@ jobs:
           - '1.4.*'
           - '1.5.*'
     steps:
-      # Deploy an ephemeral EJBCA and SignServer for CI testing
-      - uses: m8rmclaren/ejbca-signserver-k8s@main
-        with:
-          deploy-k8s: 'true'
-          deploy-nginx-ingress: 'true'
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version-file: 'go.mod'
           cache: true
-      # Place the contents of ${{ secrets.EJBCA_CLIENT_CERT_PATH }} into a file at /tmp/certs/ejbca.pem
-      - run: mkdir -p /tmp/certs && echo "${{ secrets.EJBCA_CLIENT_CERT }}" > /tmp/certs/ejbca.pem
       - uses: hashicorp/setup-terraform@a1502cd9e758c50496cc9ac5308c4843bcd56d36 # v3.0.0
         with:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
+      # Deploy an ephemeral EJBCA and SignServer for CI testing
+      - uses: m8rmclaren/ejbca-signserver-k8s@main
+        with:
+          deploy-k8s: 'true'
+          deploy-nginx-ingress: 'true'
       - env:
           TF_ACC: "1"
         run: go test -v -cover ./internal/ejbca/
