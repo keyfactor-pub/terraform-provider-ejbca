@@ -100,7 +100,7 @@ EOT
 func generateCSR(subject string) ([]byte, error) {
 	keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
 
-	subj, err := parseSubjectDN(subject, false)
+	subj, err := parseSubjectDN(subject, true)
 	if err != nil {
 		return make([]byte, 0), err
 	}
