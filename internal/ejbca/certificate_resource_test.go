@@ -81,6 +81,10 @@ func testAccEjbcaCertificate(tc certificateTestCase) string {
 	}
 
 	return fmt.Sprintf(`
+provider "ejbca" {
+    cert_auth {}
+}
+
 resource "ejbca_certificate" "certificate_test" {
   certificate_signing_request = <<EOT
 %s
@@ -149,7 +153,11 @@ func parseSubjectDN(subject string, randomizeCn bool) (pkix.Name, error) {
 			name.OrganizationalUnit = []string{value}
 		case "CN":
 			if randomizeCn {
-				name.CommonName = fmt.Sprintf("%s-%s", value, generateRandomString(5))
+				cn, err := generateRandomString(5)
+				if err != nil {
+					return pkix.Name{}, err
+				}
+				name.CommonName = fmt.Sprintf("%s-%s", value, cn)
 			} else {
 				name.CommonName = value
 			}

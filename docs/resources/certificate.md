@@ -8,8 +8,12 @@ description: |-
   an End Entity is created in EJBCA which is not deleted when the resource is destroyed. If this is behavior that is
   desired, please use the ejbca_end_entity resource to generate the end entity, and reference the end entity name
   in the end_entity_name attribute of the ejbca_certificate resource.
-  EJBCA API Usage
+  The EJBCA Certificate Resource uses the following EJBCA API endpoints:
   POST /v1/certificate/pkcs10enroll - Used to enroll a certificate with a PKCS#10 Certificate Signing RequestPOST /v1/certificate/search - Used to search for a certificate by serial numberGET /v1/ca/{subject_dn}/certificate/download - Used to download the CA certificate chain if it was not provided in the response from /v1/certificate/searchPUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke - Used to revoke a certificate
+  The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for end_entity_name:
+  cn: Uses the Common Name from the CSR's Distinguished Name.dns: Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).uri: Uses the first URI from the CSR's Subject Alternative Names (SANs).ip: Uses the first IP Address from the CSR's Subject Alternative Names (SANs).Custom Value: Any other string will be directly used as the End Entity Name.
+  If the end_entity_name field is not explicitly set, the EJBCA Terraform Provider will attempt to determine the End Entity Name using the following default behavior:
+  First, it will try to use the Common Name: It looks at the Common Name from the CSR's Distinguished Name.If the Common Name is not available, it will use the first DNS Name: It looks at the first DNS Name from the CSR's Subject Alternative Names (SANs).If the DNS Name is not available, it will use the first URI: It looks at the first URI from the CSR's Subject Alternative Names (SANs).If the URI is not available, it will use the first IP Address: It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).**If none of the above are available, it will return an error.
 ---
 
 # ejbca_certificate (Resource)
@@ -20,11 +24,28 @@ an End Entity is created in EJBCA which is **not** deleted when the resource is 
 desired, please use the `ejbca_end_entity` resource to generate the end entity, and reference the end entity name
 in the `end_entity_name` attribute of the `ejbca_certificate` resource.
 
-## EJBCA API Usage
+The EJBCA Certificate Resource uses the following EJBCA API endpoints:
+
 * `POST /v1/certificate/pkcs10enroll` - Used to enroll a certificate with a PKCS#10 Certificate Signing Request
 * `POST /v1/certificate/search` - Used to search for a certificate by serial number
 * `GET /v1/ca/{subject_dn}/certificate/download` - Used to download the CA certificate chain if it was not provided in the response from `/v1/certificate/search`
 * `PUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke` - Used to revoke a certificate
+
+The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for `end_entity_name`:
+
+* **`cn`:** Uses the Common Name from the CSR's Distinguished Name.
+* **`dns`:** Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **`uri`:** Uses the first URI from the CSR's Subject Alternative Names (SANs).
+* **`ip`:** Uses the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **Custom Value:** Any other string will be directly used as the End Entity Name.
+
+If the `end_entity_name` field is not explicitly set, the EJBCA Terraform Provider will attempt to determine the End Entity Name using the following default behavior:
+
+* **First, it will try to use the Common Name:** It looks at the Common Name from the CSR's Distinguished Name.
+* **If the Common Name is not available, it will use the first DNS Name:** It looks at the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **If the DNS Name is not available, it will use the first URI:** It looks at the first URI from the CSR's Subject Alternative Names (SANs).
+* **If the URI is not available, it will use the first IP Address:** It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **If none of the above are available, it will return an error.
 
 ## Example Usage
 
@@ -55,6 +76,7 @@ resource "ejbca_certificate" "Certificate" {
   certificate_authority_name  = "ManagementCA"
   end_entity_name             = "ejbca_tf_demo"
   end_entity_password         = "password"
+  account_binding_id          = "abc123"
 }
 ```
 
@@ -64,11 +86,15 @@ resource "ejbca_certificate" "Certificate" {
 ### Required
 
 - `certificate_authority_name` (String) EJBCA Certificate Authority Name used to sign the certificate
-- `certificate_profile_name` (String) EJBCA Certificate Profile Name to use for the certificate
-- `certificate_signing_request` (String) PKCS#10 Certificate Signing Request
-- `end_entity_name` (String) Name of the EJBCA entity to create for the certificate
-- `end_entity_password` (String) Password of the EJBCA entity
+- `certificate_profile_name` (String) EJBCA Certificate Profile Name to use for the certificate. Profile must exist in the connected EJBCA instance, and it must correspond to the format of the certificate_signing_request.
+- `certificate_signing_request` (String) PKCS#10 PEM-encoded Certificate Signing Request
 - `end_entity_profile_name` (String) EJBCA End Entity Profile Name to use for the certificate
+
+### Optional
+
+- `account_binding_id` (String) An account binding ID in EJBCA to associate with issued certificates.
+- `end_entity_name` (String) Name of the EJBCA entity to create for the certificate
+- `end_entity_password` (String) Password of the EJBCA entity. If not provided, a random password will be generated
 
 ### Read-Only
 

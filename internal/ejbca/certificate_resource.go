@@ -15,8 +15,8 @@ import (
 )
 
 // Ensure ejbca defined types fully satisfy framework interfaces.
-var _ resource.Resource = &CertificateResource{}
 var _ resource.ResourceWithImportState = &CertificateResource{}
+var _ resource.ResourceWithConfigure = &CertificateResource{}
 
 func NewCertificateResource() resource.Resource {
 	return &CertificateResource{}
@@ -38,27 +38,29 @@ type CertificateResourceModel struct {
 	EndEntityPassword         types.String `tfsdk:"end_entity_password"`
 	Certificate               types.String `tfsdk:"certificate"`
 	IssuerDn                  types.String `tfsdk:"issuer_dn"`
+    AccountBindingId          types.String `tfsdk:"account_binding_id"`
 }
 
 func (r *CertificateResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_certificate"
 }
 
-func (r *CertificateResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	tflog.Debug(ctx, "Returning schema for CertificateResource")
 	resp.Schema = schema.Schema{
 		MarkdownDescription: certificateResourceMarkdownDescription,
 
 		Attributes: map[string]schema.Attribute{
 			"certificate_signing_request": schema.StringAttribute{
 				Required:    true,
-				Description: "PKCS#10 Certificate Signing Request",
+				Description: "PKCS#10 PEM-encoded Certificate Signing Request",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"certificate_profile_name": schema.StringAttribute{
 				Required:    true,
-				Description: "EJBCA Certificate Profile Name to use for the certificate",
+				Description: "EJBCA Certificate Profile Name to use for the certificate. Profile must exist in the connected EJBCA instance, and it must correspond to the format of the certificate_signing_request.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -78,19 +80,26 @@ func (r *CertificateResource) Schema(_ context.Context, req resource.SchemaReque
 				},
 			},
 			"end_entity_name": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "Name of the EJBCA entity to create for the certificate",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"end_entity_password": schema.StringAttribute{
-				Required:    true,
-				Description: "Password of the EJBCA entity",
+				Optional:    true,
+				Description: "Password of the EJBCA entity. If not provided, a random password will be generated",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+            "account_binding_id": schema.StringAttribute{
+                Optional: true,
+                Description: "An account binding ID in EJBCA to associate with issued certificates.",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.RequiresReplace(),
+                },
+            },
 
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -109,10 +118,10 @@ func (r *CertificateResource) Schema(_ context.Context, req resource.SchemaReque
 }
 
 func (r *CertificateResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
+	tflog.Trace(ctx, "Configuring EJBCA CertificateResource")
 
 	client, ok := req.ProviderData.(*ejbca.APIClient)
 	if !ok {
@@ -120,17 +129,23 @@ func (r *CertificateResource) Configure(ctx context.Context, req resource.Config
 			"Unexpected Resource Configure Type",
 			fmt.Sprintf("Expected *ejbca.APIClient, got: %T. Please report this issue to the ejbca developers.", req.ProviderData),
 		)
-
 		return
 	}
 
 	r.client = client
+	tflog.Debug(ctx, "EJBCA CertificateResource is configured")
 }
 
 func (r *CertificateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var state CertificateResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
+
+	tflog.Info(ctx, "Create called on CertificateResource resource")
 
 	// Read Terraform plan state into the model
+	var state CertificateResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -138,6 +153,10 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 
 	// Perform a PKCS#10 enrollment.
 	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).EnrollPkcs10Certificate(&state)...)
+	if resp.Diagnostics.HasError() {
+		tflog.Error(ctx, "Failed to enroll certificate")
+		return
+	}
 
 	// Save the certificate to the filesystem for debugging purposes.
 	filename := fmt.Sprintf("%s.pem", state.EndEntityName.ValueString())
@@ -156,6 +175,11 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 }
 
 func (r *CertificateResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
+
 	var state CertificateResourceModel
 
 	tflog.Info(ctx, "Read called on CertificateResource resource")
@@ -185,11 +209,14 @@ func (r *CertificateResource) Update(_ context.Context, _ resource.UpdateRequest
 }
 
 func (r *CertificateResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state CertificateResourceModel
+	if r.client == nil {
+		return
+	}
 
 	tflog.Info(ctx, "Delete called on CertificateResource resource")
 
 	// Read Terraform state into the model
+	var state CertificateResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -215,9 +242,26 @@ an End Entity is created in EJBCA which is **not** deleted when the resource is 
 desired, please use the ` + "`ejbca_end_entity`" + ` resource to generate the end entity, and reference the end entity name
 in the ` + "`end_entity_name`" + ` attribute of the ` + "`ejbca_certificate`" + ` resource.
 
-## EJBCA API Usage
+The EJBCA Certificate Resource uses the following EJBCA API endpoints:
+
 * ` + "`" + `POST /v1/certificate/pkcs10enroll` + "`" + ` - Used to enroll a certificate with a PKCS#10 Certificate Signing Request
 * ` + "`" + `POST /v1/certificate/search` + "`" + ` - Used to search for a certificate by serial number
 * ` + "`" + `GET /v1/ca/{subject_dn}/certificate/download` + "`" + ` - Used to download the CA certificate chain if it was not provided in the response from ` + "`" + `/v1/certificate/search` + "`" + `
 * ` + "`" + `PUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke` + "`" + ` - Used to revoke a certificate
+
+The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for ` + "`" + `end_entity_name` + "`" + `:
+
+* **` + "`" + `cn` + "`" + `:** Uses the Common Name from the CSR's Distinguished Name.
+* **` + "`" + `dns` + "`" + `:** Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **` + "`" + `uri` + "`" + `:** Uses the first URI from the CSR's Subject Alternative Names (SANs).
+* **` + "`" + `ip` + "`" + `:** Uses the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **Custom Value:** Any other string will be directly used as the End Entity Name.
+
+If the ` + "`" + `end_entity_name` + "`" + ` field is not explicitly set, the EJBCA Terraform Provider will attempt to determine the End Entity Name using the following default behavior:
+
+* **First, it will try to use the Common Name:** It looks at the Common Name from the CSR's Distinguished Name.
+* **If the Common Name is not available, it will use the first DNS Name:** It looks at the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **If the DNS Name is not available, it will use the first URI:** It looks at the first URI from the CSR's Subject Alternative Names (SANs).
+* **If the URI is not available, it will use the first IP Address:** It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **If none of the above are available, it will return an error.
 `

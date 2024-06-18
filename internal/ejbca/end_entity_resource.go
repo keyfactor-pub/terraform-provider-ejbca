@@ -16,6 +16,7 @@ import (
 // Ensure ejbca defined types fully satisfy framework interfaces.
 var _ resource.Resource = &EndEntityResource{}
 var _ resource.ResourceWithImportState = &EndEntityResource{}
+var _ resource.ResourceWithConfigure = &EndEntityResource{}
 
 func NewEndEntityResource() resource.Resource {
 	return &EndEntityResource{}
@@ -137,7 +138,6 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 }
 
 func (r *EndEntityResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -156,11 +156,15 @@ func (r *EndEntityResource) Configure(_ context.Context, req resource.ConfigureR
 }
 
 func (r *EndEntityResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Create called on EndEntityResource resource")
 
 	// Read Terraform plan state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -177,11 +181,15 @@ func (r *EndEntityResource) Create(ctx context.Context, req resource.CreateReque
 }
 
 func (r *EndEntityResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Read called on EndEntityResource resource")
 
 	// Read Terraform state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -206,11 +214,15 @@ func (r *EndEntityResource) Update(_ context.Context, _ resource.UpdateRequest, 
 }
 
 func (r *EndEntityResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Delete called on EndEntityResource resource")
 
 	// Read Terraform state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return

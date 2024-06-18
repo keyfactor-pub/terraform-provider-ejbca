@@ -6,6 +6,10 @@ import (
 )
 
 func TestAccAuthorizedEndEntityProfilesDataSource(t *testing.T) {
+	config := getAccTestConfig(t)
+    if !config.isEnterprise {
+        t.Skip("Skipping Authorized End Entity Profile Data Source Test since connected instance was not flagged as Enterprise")
+    }
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -23,5 +27,10 @@ func TestAccAuthorizedEndEntityProfilesDataSource(t *testing.T) {
 	})
 }
 
-const testAccAuthorizedEEPDataSourceConfig = `data "ejbca_authorized_end_entity_profiles" "aeep" {
+const testAccAuthorizedEEPDataSourceConfig = `
+provider "ejbca" {
+    cert_auth {}
+}
+
+data "ejbca_authorized_end_entity_profiles" "aeep" {
 }`

@@ -22,6 +22,7 @@ import (
 // Ensure ejbca defined types fully satisfy framework interfaces.
 var _ resource.Resource = &KeystoreResource{}
 var _ resource.ResourceWithImportState = &KeystoreResource{}
+var _ resource.ResourceWithConfigure = &KeystoreResource{}
 
 func NewKeystoreResource() resource.Resource {
 	return &KeystoreResource{}
@@ -103,7 +104,6 @@ func (r *KeystoreResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 }
 
 func (r *KeystoreResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -122,11 +122,15 @@ func (r *KeystoreResource) Configure(_ context.Context, req resource.ConfigureRe
 }
 
 func (r *KeystoreResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var state KeystoreResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Create called on KeystoreResource resource")
 
 	// Read Terraform plan state into the model
+	var state KeystoreResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return

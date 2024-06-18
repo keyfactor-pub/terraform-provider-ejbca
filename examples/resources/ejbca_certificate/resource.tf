@@ -24,4 +24,5 @@ resource "ejbca_certificate" "Certificate" {
   certificate_authority_name  = "ManagementCA"
   end_entity_name             = "ejbca_tf_demo"
   end_entity_password         = "password"
+  account_binding_id          = "abc123"
 }

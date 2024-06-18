@@ -16,7 +16,11 @@ type keystoresTestCase struct {
 func TestAccKeystoreResource(t *testing.T) {
 	t.Skip("ejbca_keystore is not yet supported")
 	// Create a new EndEntity
-	endEntityName := "ejbca_terraform_testacc" + generateRandomString(5)
+	rand, err := generateRandomString(20)
+	if err != nil {
+		t.Fatalf("Error generating random string: %s", err)
+	}
+	endEntityName := "ejbca_terraform_testacc" + rand
 	endEntityPassword := "password"
 	endEntityValues := populateEndEntityTestCase(endEntityName, endEntityPassword)
 
@@ -46,6 +50,10 @@ func TestAccKeystoreResource(t *testing.T) {
 
 func testAccEjbcaKeystore(etc endEntityTestCase, ktc keystoresTestCase) string {
 	return fmt.Sprintf(`
+provider "ejbca" {
+    cert_auth {}
+}
+
 resource "ejbca_end_entity" "end_entity_test" {
   end_entity_name = "%s"
   end_entity_password = "%s"

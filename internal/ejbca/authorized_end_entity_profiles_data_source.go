@@ -51,7 +51,6 @@ func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ data
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -70,9 +69,12 @@ func (d *AuthorizedEndEntityProfilesDataSource) Configure(ctx context.Context, r
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state AuthorizedEndEntityProfilesDataSourceModel
+	if d.client == nil {
+		return
+	}
 
 	// Read Terraform configuration data into the model
+	var state AuthorizedEndEntityProfilesDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return

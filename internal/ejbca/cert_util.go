@@ -2,19 +2,22 @@ package ejbca
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
+	"os"
+	"strings"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"io"
-	"os"
 	"software.sslmate.com/src/go-pkcs12"
-	"strings"
 )
 
 type CertificateContext struct {
@@ -38,31 +41,134 @@ func (c *CertificateContext) createEndEntityContext() *EndEntityContext {
 
 func (c *CertificateContext) EnrollPkcs10Certificate(state *CertificateResourceModel) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-
+	if c == nil {
+		diags.AddError("EnrollPkcs10Certificate was called improperly", "Pointer to CertificateContext is nil")
+		return diags
+	}
+	if c.client == nil {
+		diags.AddError("EnrollPkcs10Certificate was called improperly", "Pointer to EJBCA client is nil")
+		return diags
+	}
 	if state == nil {
 		diags.AddError("EnrollPkcs10Certificate was called improperly", "Pointer to CertificateResourceModel is nil")
 		return diags
 	}
 
-	// Configure EJBCA PKCS#10 request
-	enroll := ejbca.EnrollCertificateRestRequest{
-		CertificateRequest:       state.CertificateSigningRequest.ValueStringPointer(),
-		CertificateProfileName:   state.CertificateProfileName.ValueStringPointer(),
-		EndEntityProfileName:     state.EndEntityProfileName.ValueStringPointer(),
-		CertificateAuthorityName: state.CertificateAuthorityName.ValueStringPointer(),
-		Username:                 state.EndEntityName.ValueStringPointer(),
-		Password:                 state.EndEntityPassword.ValueStringPointer(),
-		IncludeChain:             ptr(true),
+	tflog.Trace(c.ctx, "Parsing CSR from request")
+    blocks, err := decodePEMBytes([]byte(state.CertificateSigningRequest.ValueString()))
+    if len(blocks) != 1 {
+        diags.AddError("Failed to parse CSR", fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks)))
+        tflog.Error(c.ctx, "Failed to parse CSR", map[string]any{"err": fmt.Sprintf("CSR must contain exactly one PEM block, found %d", len(blocks))})
+        return diags
+    }
+	parsedCsr, err := x509.ParseCertificateRequest(blocks[0].Bytes)
+	if err != nil {
+		diags.AddError("Failed to parse CSR", err.Error())
+		tflog.Error(c.ctx, "Failed to parse CSR", map[string]any{"err": err.Error()})
+		return diags
+	}
+	csrPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: parsedCsr.Raw})
+
+	tflog.Trace(c.ctx, "Determining end entity name")
+	endEntityName, err := c.getEndEntityName(state.EndEntityName.ValueString(), parsedCsr)
+	if err != nil {
+		diags.AddError("Failed to determine end entity name", err.Error())
+		return diags
 	}
 
+	if state.EndEntityPassword.IsNull() {
+		password, err := generateRandomString(20)
+		if err != nil {
+			diags.AddError("Failed to generate random password", err.Error())
+			return diags
+		}
+		state.EndEntityPassword = types.StringValue(password)
+	}
+
+	// Configure EJBCA PKCS#10 request
+	tflog.Trace(c.ctx, "Preparing EJBCA enrollment request")
+	config := ejbca.EnrollCertificateRestRequest{}
+	config.SetCertificateRequest(string(csrPem))
+	config.SetCertificateAuthorityName(state.CertificateAuthorityName.ValueString())
+	config.SetCertificateProfileName(state.CertificateProfileName.ValueString())
+	config.SetEndEntityProfileName(state.EndEntityProfileName.ValueString())
+	config.SetUsername(endEntityName)
+	config.SetPassword(state.EndEntityPassword.ValueString())
+	config.SetIncludeChain(true)
+    config.SetAccountBindingId(state.AccountBindingId.ValueString())
+
+	tflog.Debug(c.ctx, "Prepared EJBCA enrollment request", map[string]any{"subject": parsedCsr.Subject.String(), "uriSANs": parsedCsr.URIs, "endEntityName": endEntityName, "caName": config.GetCertificateAuthorityName(), "certificateProfileName": config.CertificateProfileName, "endEntityProfileName": config.EndEntityProfileName, "accountBindingId": config.GetAccountBindingId()})
+
 	// Enroll the PKCS#10 CSR using the EJBCA API
-	certificate, _, err := c.client.V1CertificateApi.EnrollPkcs10Certificate(c.ctx).EnrollCertificateRestRequest(enroll).Execute()
+	certificate, _, err := c.client.V1CertificateApi.EnrollPkcs10Certificate(c.ctx).EnrollCertificateRestRequest(config).Execute()
 	if err != nil {
 		return logErrorAndReturnDiags(c.ctx, diags, err, "Failed to enroll PKCS#10 CSR")
 	}
 
 	tflog.Debug(c.ctx, "Enrolled certificate using PKCS#10 enrollment with serial number: "+certificate.GetSerialNumber())
 	return c.ComposeStateFromCertificateResponse(certificate, state)
+}
+
+// getEndEntityName calculates the End Entity Name based on the default_end_entity_name from the EJBCA UpstreamAuthority
+// configuration. The possible values are:
+// - cn: Uses the Common Name from the CSR's Distinguished Name.
+// - dns: Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).
+// - uri: Uses the first URI from the CSR's Subject Alternative Names (SANs).
+// - ip: Uses the first IP Address from the CSR's Subject Alternative Names (SANs).
+// - Custom Value: Any other string will be directly used as the End Entity Name.
+// If the default_end_entity_name is not set, the plugin will determine the End Entity Name in the same order as above.
+func (c *CertificateContext) getEndEntityName(defaultEndEntityName string, csr *x509.CertificateRequest) (string, error) {
+	eeName := ""
+	// 1. If the endEntityName option is set, determine the end entity name based on the option
+	// 2. If the endEntityName option is not set, determine the end entity name based on the CSR
+
+	// cn: Use the CommonName from the CertificateRequest's DN
+	if defaultEndEntityName == "cn" || defaultEndEntityName == "" {
+		if csr.Subject.CommonName != "" {
+			eeName = csr.Subject.CommonName
+			tflog.Debug(c.ctx, "Using CommonName from the CSR's DN as the EJBCA end entity name", map[string]any{"endEntityName": eeName})
+			return eeName, nil
+		}
+	}
+
+	// dns: Use the first DNSName from the CertificateRequest's DNSNames SANs
+	if defaultEndEntityName == "dns" || defaultEndEntityName == "" {
+		if len(csr.DNSNames) > 0 && csr.DNSNames[0] != "" {
+			eeName = csr.DNSNames[0]
+			tflog.Debug(c.ctx, "Using the first DNSName from the CSR's DNSNames SANs as the EJBCA end entity name", map[string]any{"endEntityName": eeName})
+			return eeName, nil
+		}
+	}
+
+	// uri: Use the first URI from the CertificateRequest's URI Sans
+	if defaultEndEntityName == "uri" || defaultEndEntityName == "" {
+		if len(csr.URIs) > 0 {
+			eeName = csr.URIs[0].String()
+			tflog.Debug(c.ctx, "Using the first URI from the CSR's URI Sans as the EJBCA end entity name", map[string]any{"endEntityName": eeName})
+			return eeName, nil
+		}
+	}
+
+	// ip: Use the first IPAddress from the CertificateRequest's IPAddresses SANs
+	if defaultEndEntityName == "ip" || defaultEndEntityName == "" {
+		if len(csr.IPAddresses) > 0 {
+			eeName = csr.IPAddresses[0].String()
+			tflog.Debug(c.ctx, "Using the first IPAddress from the CSR's IPAddresses SANs as the EJBCA end entity name", map[string]any{"endEntityName": eeName})
+			return eeName, nil
+		}
+	}
+
+	// End of defaults; if the endEntityName option is set to anything but cn, dns, or uri, use the option as the end entity name
+	if defaultEndEntityName != "" && defaultEndEntityName != "cn" && defaultEndEntityName != "dns" && defaultEndEntityName != "uri" {
+		eeName = defaultEndEntityName
+		tflog.Debug(c.ctx, "Using the default_end_entity_name config value as the EJBCA end entity name", map[string]any{"endEntityName": eeName})
+		return eeName, nil
+	}
+
+	// If we get here, we were unable to determine the end entity name
+	tflog.Error(c.ctx, fmt.Sprintf("the endEntityName option is set to %q, but no valid end entity name could be determined from the CertificateRequest", defaultEndEntityName))
+
+	return "", fmt.Errorf("no valid end entity name could be determined from the CertificateRequest")
 }
 
 func (c *CertificateContext) ReadCertificateContext(state *CertificateResourceModel) diag.Diagnostics {
@@ -169,8 +275,6 @@ func (c *CertificateContext) ReadKeystoreContext(state *KeystoreResourceModel) d
 	state.EndEntityName = certificateState.EndEntityName
 	state.Certificate = certificateState.Certificate
 	state.IssuerDn = certificateState.IssuerDn
-
-	// TODO: Compute KeyAlg and KeySpec from the certificate
 
 	return nil
 }
@@ -472,4 +576,32 @@ func compileCertificatesToPemString(ctx context.Context, certificates []*x509.Ce
 	}
 
 	return pemBuilder.String()
+}
+
+func decodePEMBytes(buf []byte) ([]*pem.Block, error) {
+	var certificates []*pem.Block
+	var block *pem.Block
+	for {
+		block, buf = pem.Decode(buf)
+		if block == nil {
+			break
+		} else {
+			certificates = append(certificates, block)
+		}
+	}
+	return certificates, nil
+}
+
+// generateRandomString generates a random string of the specified length
+func generateRandomString(length int) (string, error) {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, length)
+	for i := range b {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = letters[num.Int64()]
+	}
+	return string(b), nil
 }

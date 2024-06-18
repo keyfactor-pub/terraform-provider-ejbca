@@ -17,7 +17,17 @@ type endEntityTestCase struct {
 }
 
 func TestAccEndEntityResource(t *testing.T) {
-	t1 := populateEndEntityTestCase("ejbca_terraform_testacc"+generateRandomString(5), "password")
+    config := getAccTestConfig(t)
+    if !config.isEnterprise {
+        t.Skip("Skipping End Entity Resource test since connected instance was not flagged as Enterprise")
+    }
+
+	rand, err := generateRandomString(20)
+	if err != nil {
+		t.Fatalf("Error generating random string: %s", err)
+	}
+
+	t1 := populateEndEntityTestCase("ejbca_terraform_testacc"+rand, "password")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -45,6 +55,10 @@ func TestAccEndEntityResource(t *testing.T) {
 
 func testAccEjbcaEndEntity(tc endEntityTestCase) string {
 	return fmt.Sprintf(`
+provider "ejbca" {
+    cert_auth {}
+}
+
 resource "ejbca_end_entity" "end_entity_test" {
   end_entity_name = "%s"
   end_entity_password = "%s"

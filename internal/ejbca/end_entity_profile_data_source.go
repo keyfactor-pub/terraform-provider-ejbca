@@ -11,7 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
+// Ensure ejbca defined types fully satisfy framework interfaces.
 var _ datasource.DataSource = &EndEntityProfileDataSource{}
+var _ datasource.DataSourceWithConfigure = &EndEntityProfileDataSource{}
 
 func NewEndEntityProfileDataSource() datasource.DataSource {
 	return &EndEntityProfileDataSource{}
@@ -74,7 +76,6 @@ func (d *EndEntityProfileDataSource) Schema(ctx context.Context, req datasource.
 }
 
 func (d *EndEntityProfileDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -93,9 +94,13 @@ func (d *EndEntityProfileDataSource) Configure(ctx context.Context, req datasour
 }
 
 func (d *EndEntityProfileDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state EndEntityProfileDataSourceModel
+	if d.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	// Read Terraform configuration data into the model
+	var state EndEntityProfileDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
