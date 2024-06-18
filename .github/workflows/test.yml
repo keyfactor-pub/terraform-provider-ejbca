@@ -77,6 +77,8 @@ jobs:
         with:
           deploy-k8s: 'true'
           deploy-nginx-ingress: 'true'
+          deploy-signserver: 'false'
+
       - env:
           TF_ACC: "1"
         run: go test -v -cover ./internal/ejbca/
