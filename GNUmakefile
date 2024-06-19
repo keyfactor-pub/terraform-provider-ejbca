@@ -80,7 +80,7 @@ endif
 # Vars
 ############################################################################
 
-binaries := terraform-provider-ejbca
+binary := terraform-provider-ejbca
 
 build_dir := $(DIR)/.build/$(os1)-$(arch1)
 
@@ -157,36 +157,13 @@ go_ldflags := -s -w
 #############################################################################
 
 .PHONY: build
-build: tidy $(addprefix bin/,$(binaries))
+build: tidy bin/$(binary)
 
 go_build := $(go_path) CGO_ENABLED=0 go build $(go_flags) -ldflags '$(go_ldflags)' -o
 
-bin/%: cmd/% FORCE | go-check
+bin/$(binary): | go-check
 	@echo Building $@…
-	$(E)$(go_build) $@$(exe) ./$<
-
-bin/%: support/% FORCE | go-check
-	@echo Building $@…
-	$(E)$(go_build) $@$(exe) ./$<
-
-#############################################################################
-# Build static binaries for docker images
-#############################################################################
-
-.PHONY: build-static
-# The build-static is intended to statically link to musl libc.
-# There are possibilities of unexpected errors when statically link to GLIBC.
-# https://7thzero.com/blog/golang-w-sqlite3-docker-scratch-image
-build-static: tidy $(addprefix bin/static/,$(binaries))
-
-go_build_static := $(go_path) go build $(go_flags) -ldflags '$(go_ldflags) -linkmode external -extldflags "-static"' -o
-
-bin/static/%: cmd/% FORCE | go-check
-	@echo Building $@…
-	$(E)$(go_build_static) $@$(exe) ./$<
-
-bin/static/%: support/% FORCE | go-check
-	$(E)$(go_build_static) $@$(exe) ./$<
+	$(E)$(go_build) $@$(exe) ./main.go
 
 #############################################################################
 # Test Targets
