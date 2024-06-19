@@ -27,23 +27,44 @@ Run `terraform init` to initialize the provider. Terraform will automatically do
 
 ### From Source (Mac OS/Linux)
 To build and install the provider from source, clone the repository to your local machine and configure Terraform manually.
-The Makefile takes care of these steps for you by adding a `provider_installation` block to your `~/.terraformrc` file.
 
-```bash
-git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
-cd terraform-provider-ejbca
-make local-config install
-```
+1. Clone the GitHub repo and compile the provider.
 
-###### Be cautious when running `make uninstall-local` as it will remove all custom installation (`provider_installation`) steps in the `~/.terraformrc` file.
+    ```shell
+    git clone https://github.com/keyfactor-pub/terraform-provider-ejbca.git
+    cd terraform-provider-ejbca
+    make build
+    ```
 
-### From Source (Windows)
-```powershell
-git clone https://github.com/Keyfactor/terraform-provider-ejbca.git
-cd terraform-provider-ejbca
-go build -o %APPDATA%\terraform.d\plugins\registry.terraform.io\keyfactor-pub\ejbca\1.0.0\terraform-provider-ejbca.exe
-terraform init -upgrade
-```
+2. Move the binary to the plugin directory
+
+    ```shell
+    mkdir -p "$HOME/.terraform.d/plugins/registry.terraform.io/keyfactor-pub/ejbca/1.0.0/$(go env GOOS)_$(go env GOARCH)"
+    mv "bin/terraform-provider-ejbca" "$HOME/.terraform.d/plugins/registry.terraform.io/keyfactor-pub/ejbca/1.0.0/$(go env GOOS)_$(go env GOARCH)"
+    ```
+
+3. Create or modify a `.terraformrc` file
+
+    ```shell
+    cat <<EOF > "$HOME/.terraformrc"
+    provider_installation {
+        filesystem_mirror {
+            path    = "$HOME/.terraform.d/plugins"
+            include = ["registry.terraform.io/keyfactor-pub/ejbca"]
+        }
+        direct {
+            exclude = ["registry.terraform.io/keyfactor-pub/ejbca"]
+        }
+    }
+    EOF
+    ```
+
+4. Initialize the provider
+
+    ```shell
+    [ -f .terraform.lock.hcl ] && echo "Removing .terraform.lock.hcl" && rm .terraform.lock.hcl
+    terraform init -upgrade
+    ```
 
 ## Using the provider
 
