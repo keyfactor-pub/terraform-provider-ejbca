@@ -133,7 +133,7 @@ func (p *Provider) newAuthenticator(ctx context.Context, configModel ProviderMod
 	var diags diag.Diagnostics
 
 	var caChain []*x509.Certificate
-	if !configModel.CaCertPath.IsNull() {
+	if configModel.CaCertPath.ValueString() != "" {
 		tflog.Trace(ctx, "Parsing CA chain from file", map[string]any{"path": configModel.CaCertPath.ValueString()})
 
 		caChainBytes, err := p.hooks.readFile(configModel.CaCertPath.ValueString())
