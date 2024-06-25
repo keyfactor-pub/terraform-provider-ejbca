@@ -34,6 +34,7 @@ type endEntityTestCase struct {
 }
 
 func TestAccEndEntityResource(t *testing.T) {
+    t.Skip("ejbca_end_entity is not yet supported")
 	config := getAccTestConfig(t)
 	if !config.isEnterprise {
 		t.Skip("Skipping End Entity Resource test since connected instance was not flagged as Enterprise")

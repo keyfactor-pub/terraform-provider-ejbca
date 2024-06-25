@@ -100,14 +100,11 @@ func (d *CaPemDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	// Download the CA PEM
-	chain, err := CreateCertificateContext(ctx, d.client).DownloadCaChain(state.Dn.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to retrieve CA PEM for CA with DN "+state.Dn.ValueString(),
-			fmt.Sprintf("Got error: %s", err.Error()),
-		)
-		return
-	}
+	chain, diags := CreateCertificateContext(ctx, d.client).DownloadCAChain(state.Dn.ValueString())
+    resp.Diagnostics.Append(diags...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
 
 	state.CaPem = types.StringValue(compileCertificatesToPemString(ctx, chain))
 	state.ID = types.StringValue(fmt.Sprintf("%X", chain[0].SerialNumber))

@@ -20,20 +20,27 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/keyfactor-pub/terraform-provider-ejbca/internal/ejbca/attribute_plan_modifier_bool"
 )
 
 // Ensure ejbca defined types fully satisfy framework interfaces.
 var _ resource.ResourceWithImportState = &CertificateResource{}
 var _ resource.ResourceWithConfigure = &CertificateResource{}
+var _ resource.ResourceWithModifyPlan = &CertificateResource{}
 
 func NewCertificateResource() resource.Resource {
 	return &CertificateResource{}
@@ -52,10 +59,15 @@ type CertificateResourceModel struct {
 	EndEntityProfileName      types.String `tfsdk:"end_entity_profile_name"`
 	CertificateAuthorityName  types.String `tfsdk:"certificate_authority_name"`
 	EndEntityName             types.String `tfsdk:"end_entity_name"`
-	EndEntityPassword         types.String `tfsdk:"end_entity_password"`
 	Certificate               types.String `tfsdk:"certificate"`
+	Chain                     types.String `tfsdk:"chain"`
 	IssuerDn                  types.String `tfsdk:"issuer_dn"`
 	AccountBindingID          types.String `tfsdk:"account_binding_id"`
+	ValidityEndTime           types.String `tfsdk:"validity_end_time"`
+	ValidityStartTime         types.String `tfsdk:"validity_start_time"`
+    EarlyRenewalHours         types.Int64  `tfsdk:"early_renewal_hours"`
+    ReadyForRenewal           types.Bool   `tfsdk:"ready_for_renewal"`
+    IsRevoked                 types.Bool   `tfsdk:"is_revoked"`
 }
 
 func (r *CertificateResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -103,13 +115,6 @@ func (r *CertificateResource) Schema(ctx context.Context, _ resource.SchemaReque
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"end_entity_password": schema.StringAttribute{
-				Optional:    true,
-				Description: "Password of the EJBCA entity. If not provided, a random password will be generated",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
 			"account_binding_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "An account binding ID in EJBCA to associate with issued certificates.",
@@ -117,19 +122,80 @@ func (r *CertificateResource) Schema(ctx context.Context, _ resource.SchemaReque
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+            "early_renewal_hours": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+                Default: int64default.StaticInt64(0),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(0),
+				},
+				Description: "The resource will consider the certificate to have expired the given number of hours " +
+					"before its actual expiry time. This can be useful to renew the certificate in advance of " +
+					"the expiration of the current certificate. " +
+                    "The advance update can only be performed if the resource is applied within the early renewal period. (default: `0`)",
+			},
 
+			// Computed schema
 			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Serial number of the certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
 			},
 			"certificate": schema.StringAttribute{
 				Computed:    true,
-				Description: "PEM encoded X509v3 certificate and chain",
+				Description: "PEM encoded X509v3 leaf certificate",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
+			},
+			"chain": schema.StringAttribute{
+				Computed:    true,
+				Description: "The PEM encoded X509v3 certificate chain up to the root CA.",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
 			},
 			"issuer_dn": schema.StringAttribute{
 				Computed:    true,
 				Description: "Distinguished name of the certificate issuer",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
 			},
+			"validity_end_time": schema.StringAttribute{
+				Computed:            true,
+				Description:         "The time until which the certificate is invalid, expressed as an RFC3339 timestamp.",
+				MarkdownDescription: "The time until which the certificate is invalid, expressed as an [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamp.",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
+			},
+			"validity_start_time": schema.StringAttribute{
+				Computed:            true,
+				Description:         "The time after which the certificate is valid, expressed as an RFC3339 timestamp.",
+				MarkdownDescription: "The time after which the certificate is valid, expressed as an [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamp.",
+                PlanModifiers: []planmodifier.String{
+                    stringplanmodifier.UseStateForUnknown(),
+                },
+			},
+            "ready_for_renewal": schema.BoolAttribute{
+                Computed: true,
+                // Default:  booldefault.StaticBool(false),
+                PlanModifiers: []planmodifier.Bool{
+                    attribute_plan_modifier_bool.ReadyForRenewal(),
+				},
+				Description: "Is the certificate either expired (i.e. beyond the `validity_period_hours`) " +
+					"or ready for an early renewal (i.e. within the `early_renewal_hours`)?",
+			},
+            "is_revoked": schema.BoolAttribute{
+                Computed: true,
+                Default: booldefault.StaticBool(false),
+                PlanModifiers: []planmodifier.Bool{
+                },
+                Description: "Was the certificate revoked by the issuing CA?",
+            },
 		},
 	}
 }
@@ -208,13 +274,94 @@ func (r *CertificateResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Read certificate from EJBCA
-	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).ReadCertificateContext(&state)...)
+	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).ReadCertificate(&state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Write the state back to Terraform
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+// ModifyPlan determines if the certificate resource needs to be replaced. The two cases where this is true are:
+//   * The certificate is expired (-early_renewal_hours)
+//   * The certificate is revoked
+func (r *CertificateResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
+
+    validityEndTimePath := path.Root("validity_end_time")
+    var validityEndTimeStr types.String
+    resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, validityEndTimePath, &validityEndTimeStr)...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+    if validityEndTimeStr.IsNull() || validityEndTimeStr.IsUnknown() {
+        return
+    }
+
+    validityEndTime, err := time.Parse(time.RFC3339, validityEndTimeStr.ValueString())
+    if err != nil {
+        resp.Diagnostics.AddError(
+            fmt.Sprintf("Failed to parse data from string: %s", validityEndTimeStr.ValueString()),
+            err.Error(),
+        )
+        return
+    }
+
+    earlyRenewalHoursPath := path.Root("early_renewal_hours")
+    var earlyRenewalHours int64
+    resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, earlyRenewalHoursPath, &earlyRenewalHours)...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    // Determine the time from which an "early renewal" is possible
+    earlyRenewalPeriod := time.Duration(-earlyRenewalHours) * time.Hour
+    earlyRenewalTime := validityEndTime.Add(earlyRenewalPeriod)
+
+    // If "early renewal" time has passed, mark it "ready for renewal"
+    timeToEarlyRenewal := earlyRenewalTime.Sub(overridableTimeFunc())
+    if timeToEarlyRenewal <= 0 {
+        tflog.Info(ctx, "Certificate is ready for early renewal")
+        readyForRenewalPath := path.Root("ready_for_renewal")
+        // Plan modifiers can only change state from known to unknown, not known to known.
+        // https://developer.hashicorp.com/terraform/plugin/framework/resources/plan-modification#caveats
+        resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, readyForRenewalPath, types.BoolUnknown())...)
+        resp.RequiresReplace = append(resp.RequiresReplace, readyForRenewalPath)
+    }
+
+    idPath := path.Root("id")
+    var sn types.String
+    resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, idPath, &sn)...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    issuerDNPath := path.Root("issuer_dn")
+    var issuerDN types.String
+    resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, issuerDNPath, &issuerDN)...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    // We also trigger a replace if the certificate is revoked.
+    isRevoked, _diags := CreateCertificateContext(ctx, r.client).IsCertificateRevoked(issuerDN.ValueString(), sn.ValueString())
+    resp.Diagnostics.Append(_diags...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    if isRevoked {
+        isRevokedPath := path.Root("is_revoked")
+        tflog.Info(ctx, "Certificate is revoked - marking for replacement")
+        // Plan modifiers can only change state from known to unknown, not known to known.
+        // https://developer.hashicorp.com/terraform/plugin/framework/resources/plan-modification#caveats
+        resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, isRevokedPath, types.BoolUnknown())...)
+        resp.RequiresReplace = append(resp.RequiresReplace, isRevokedPath)
+    }
 }
 
 func (r *CertificateResource) Update(_ context.Context, _ resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -244,8 +391,30 @@ func (r *CertificateResource) Delete(ctx context.Context, req resource.DeleteReq
 	issuerDn := state.IssuerDn.ValueString()
 	certificateSerialNumber := state.ID.ValueString()
 
+    certificateContext := CreateCertificateContext(ctx, r.client)
+    isRevoked, _diags := certificateContext.IsCertificateRevoked(issuerDn, certificateSerialNumber)
+    resp.Diagnostics.Append(_diags...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    if isRevoked {
+        tflog.Info(ctx, "Certificate was already revoked during resource delete - Delete returning with no further action")
+        resp.Diagnostics.AddWarning("Certificate was already revoked during resource delete - Delete returning with no further action", "Something outside of Terraform has already revoked the certificate.")
+        return
+    }
+
+	if issuerDn == "" {
+		resp.Diagnostics.AddError("Issuer DN not found", "The issuer DN was not found in the state. Please report this issue to the ejbca developers.")
+		return
+	}
+	if certificateSerialNumber == "" {
+		resp.Diagnostics.AddError("Certificate serial number not found", "The certificate serial number was not found in the state. Please report this issue to the ejbca developers.")
+		return
+	}
+
 	// Revoke certificate
-	resp.Diagnostics.Append(CreateCertificateContext(ctx, r.client).RevokeCertificate(issuerDn, certificateSerialNumber)...)
+	resp.Diagnostics.Append(certificateContext.RevokeCertificate(issuerDn, certificateSerialNumber)...)
 }
 
 func (r *CertificateResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -281,4 +450,20 @@ If the ` + "`" + `end_entity_name` + "`" + ` field is not explicitly set, the EJ
 * **If the DNS Name is not available, it will use the first URI:** It looks at the first URI from the CSR's Subject Alternative Names (SANs).
 * **If the URI is not available, it will use the first IP Address:** It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).
 * **If none of the above are available, it will return an error.
+
+## Revocation
+
+The EJBCA Certificate resource tracks certificate revocation to ensure that instantiated certificates
+are up-to-date and also match the state of the EJBCA issuing CA. If a certificate represented by a Certificate resource
+is revoked in EJBCA, Terraform plan will mark the certificate as revoked and force recreation upon the next apply.
+
+> If the certificate is revoked in EJBCA by means other than Terraform, destroy will detect this and return with a 
+warning.
+
+## Automatic Certificate Renewal
+
+The EJBCA Certificate resource supports 'automatic' certificate renewal via the ` + "`" + "early_renewal_hours" + "` " +
+`attribute. If this value is greater than zero and the certificate is known to expire within the number of hours 
+specified by this resource, Terraform plan will mark ` + "`" + "ready_for_renewal" + "` " +
+` to trigger recreation of the Certificate resource. Then, upon the next apply, the Certificate will be renewed.
 `

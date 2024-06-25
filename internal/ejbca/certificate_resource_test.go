@@ -38,7 +38,6 @@ type certificateTestCase struct {
 	certificateProfile   string
 	certificateAuthority string
 	endEntityName        string
-	endEntityPassword    string
 }
 
 func TestAccCertificateResource(t *testing.T) {
@@ -48,7 +47,6 @@ func TestAccCertificateResource(t *testing.T) {
 		certificateProfile:   os.Getenv("EJBCA_CERTIFICATE_PROFILE_NAME"),
 		certificateAuthority: os.Getenv("EJBCA_CA_NAME"),
 		endEntityName:        "ejbca_terraform_testacc",
-		endEntityPassword:    "password",
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -63,13 +61,15 @@ func TestAccCertificateResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "id"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "issuer_dn"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "chain"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "validity_end_time"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "validity_start_time"),
 
 					// User input fields
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate_profile_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_profile_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate_authority_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_name"),
-					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_password"),
 				),
 			},
 			// ImportState testing
@@ -108,9 +108,9 @@ EOT
   end_entity_profile_name = "%s"
   certificate_authority_name = "%s"
   end_entity_name = "%s"
-  end_entity_password = "%s"
+  early_renewal_hours = 36
 }
-`, csr, tc.certificateProfile, tc.endEntityProfile, tc.certificateAuthority, tc.endEntityName, tc.endEntityPassword)
+`, csr, tc.certificateProfile, tc.endEntityProfile, tc.certificateAuthority, tc.endEntityName)
 }
 
 func generateCSR(subject string) ([]byte, error) {
