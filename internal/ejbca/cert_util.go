@@ -35,9 +35,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-var overridableTimeFunc = func() time.Time {
-	return time.Now()
-}
+var overridableTimeFunc = time.Now
 
 type CertificateContext struct {
 	ctx    context.Context
@@ -48,13 +46,6 @@ func CreateCertificateContext(ctx context.Context, client *ejbca.APIClient) *Cer
 	return &CertificateContext{
 		ctx:    ctx,
 		client: client,
-	}
-}
-
-func (c *CertificateContext) createEndEntityContext() *EndEntityContext {
-	return &EndEntityContext{
-		ctx:    c.ctx,
-		client: c.client,
 	}
 }
 

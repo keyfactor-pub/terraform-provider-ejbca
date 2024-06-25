@@ -3,7 +3,7 @@
 
 // Taken from https://github.com/hashicorp/terraform-provider-tls/blob/8f69cf7de64d98d042c171aaeafd1f97c16e05f1/internal/provider/attribute_plan_modifier_bool/default_value.go
 
-package attribute_plan_modifier_bool
+package attrpmbool
 
 import (
 	"context"
@@ -16,9 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var overridableTimeFunc = func() time.Time {
-	return time.Now()
-}
+var overridableTimeFunc = time.Now
 
 // readyForRenewalAttributePlanModifier determines whether the certificate is ready for renewal.
 type readyForRenewalAttributePlanModifier struct {
@@ -35,32 +33,32 @@ func (apm *readyForRenewalAttributePlanModifier) Description(ctx context.Context
 	return apm.MarkdownDescription(ctx)
 }
 
-func (apm *readyForRenewalAttributePlanModifier) MarkdownDescription(ctx context.Context) string {
+func (apm *readyForRenewalAttributePlanModifier) MarkdownDescription(_ context.Context) string {
 	return "Sets the value of ready_for_renewal depending on value of validity_period_hours and early_renewal_hours"
 }
 
 func (apm *readyForRenewalAttributePlanModifier) PlanModifyBool(ctx context.Context, req planmodifier.BoolRequest, res *planmodifier.BoolResponse) {
-    validityEndTimePath := path.Root("validity_end_time")
-    var validityEndTimeStr types.String
-    res.Diagnostics.Append(req.Plan.GetAttribute(ctx, validityEndTimePath, &validityEndTimeStr)...)
-    if res.Diagnostics.HasError() {
-        return
-    }
-    if validityEndTimeStr.IsNull() || validityEndTimeStr.IsUnknown() {
-        return
-    }
+	validityEndTimePath := path.Root("validity_end_time")
+	var validityEndTimeStr types.String
+	res.Diagnostics.Append(req.Plan.GetAttribute(ctx, validityEndTimePath, &validityEndTimeStr)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	if validityEndTimeStr.IsNull() || validityEndTimeStr.IsUnknown() {
+		return
+	}
 
-    validityEndTime, err := time.Parse(time.RFC3339, validityEndTimeStr.ValueString())
-    if err != nil {
-        res.Diagnostics.AddError(
-            fmt.Sprintf("Failed to parse data from string: %s", validityEndTimeStr.ValueString()),
-            err.Error(),
-        )
-        return
-    }
-    now := overridableTimeFunc()
+	validityEndTime, err := time.Parse(time.RFC3339, validityEndTimeStr.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError(
+			fmt.Sprintf("Failed to parse data from string: %s", validityEndTimeStr.ValueString()),
+			err.Error(),
+		)
+		return
+	}
+	now := overridableTimeFunc()
 
-    validityPeriodHours := math.Floor(time.Duration(validityEndTime.Sub(now)).Hours())
+	validityPeriodHours := math.Floor(validityEndTime.Sub(now).Hours())
 
 	if validityPeriodHours == 0 {
 		res.PlanValue = types.BoolValue(true)
