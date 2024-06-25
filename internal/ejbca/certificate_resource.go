@@ -241,7 +241,7 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Save the certificate to the filesystem for debugging purposes.
-	filename := fmt.Sprintf("%s.pem", state.EndEntityName.ValueString())
+	filename := fmt.Sprintf("%s.pem", state.ID.ValueString())
 	err := os.WriteFile(filename, []byte(state.Certificate.ValueString()), 0600)
 	if err != nil {
 		// We don't care if the write fails; just log a warning.

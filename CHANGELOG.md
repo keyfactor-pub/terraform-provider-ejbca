@@ -6,5 +6,7 @@
 
 # v1.1.0
 ## Features
-* mTLS and OAuth now supported authentication mechanisms
+* mTLS and OAuth now supported authentication mechanisms.
+* Support automatic renewal of certificates expiring within `early_renewal_hours`.
+* Resource now flags for recreation in plan modifier step if certificate has been revoked in EJBCA.
  
