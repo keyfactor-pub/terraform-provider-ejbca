@@ -427,13 +427,6 @@ an End Entity is created in EJBCA which is **not** deleted when the resource is 
 desired, please use the ` + "`ejbca_end_entity`" + ` resource to generate the end entity, and reference the end entity name
 in the ` + "`end_entity_name`" + ` attribute of the ` + "`ejbca_certificate`" + ` resource.
 
-The EJBCA Certificate Resource uses the following EJBCA API endpoints:
-
-* ` + "`" + `POST /v1/certificate/pkcs10enroll` + "`" + ` - Used to enroll a certificate with a PKCS#10 Certificate Signing Request
-* ` + "`" + `POST /v1/certificate/search` + "`" + ` - Used to search for a certificate by serial number
-* ` + "`" + `GET /v1/ca/{subject_dn}/certificate/download` + "`" + ` - Used to download the CA certificate chain if it was not provided in the response from ` + "`" + `/v1/certificate/search` + "`" + `
-* ` + "`" + `PUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke` + "`" + ` - Used to revoke a certificate
-
 The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for ` + "`" + `end_entity_name` + "`" + `:
 
 * **` + "`" + `cn` + "`" + `:** Uses the Common Name from the CSR's Distinguished Name.
@@ -465,4 +458,11 @@ The EJBCA Certificate resource supports 'automatic' certificate renewal via the 
 	`attribute. If this value is greater than zero and the certificate is known to expire within the number of hours 
 specified by this resource, Terraform plan will mark ` + "`" + "ready_for_renewal" + "` " +
 	` to trigger recreation of the Certificate resource. Then, upon the next apply, the Certificate will be renewed.
+
+The EJBCA Certificate Resource uses the following EJBCA API endpoints:
+
+* ` + "`" + `POST /v1/certificate/pkcs10enroll` + "`" + ` - Used to enroll a certificate with a PKCS#10 Certificate Signing Request
+* ` + "`" + `POST /v1/certificate/search` + "`" + ` - Used to search for a certificate by serial number
+* ` + "`" + `GET /v1/ca/{subject_dn}/certificate/download` + "`" + ` - Used to download the CA certificate chain if it was not provided in the response from ` + "`" + `/v1/certificate/search` + "`" + `
+* ` + "`" + `PUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke` + "`" + ` - Used to revoke a certificate
 `
