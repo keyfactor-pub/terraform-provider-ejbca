@@ -1,9 +1,4 @@
 <h1 align="center" style="border-bottom: none">
-<!--EJBCA Community logo -->
-<a href="https://ejbca.org">
-    <img src=".github/images/community-ejbca.png?raw=true)" alt="EJBCA logo" title="EJBCA" height="70" />
-</a>
-
 
 
 EJBCA Terraform Provider

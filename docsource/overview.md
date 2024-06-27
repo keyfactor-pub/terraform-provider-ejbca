@@ -12,12 +12,6 @@ The [Terraform](https://www.terraform.io/) provider for [EJBCA](https://ejbca.or
 
 > The Terraform Provider for EJBCA uses [Terraform Plugin Protocol version 6](https://developer.hashicorp.com/terraform/plugin/terraform-plugin-protocol) and is only compatible with Terraform 1.0 and later.
 
-# Logos
-<!--EJBCA Community logo -->
-<a href="https://ejbca.org">
-    <img src=".github/images/community-ejbca.png?raw=true)" alt="EJBCA logo" title="EJBCA" height="70" />
-</a>
-
 # Badges
 
 <a href="https://github.com/keyfactor-pub/terraform-provider-ejbca/releases/latest"><img src="https://img.shields.io/github/v/release/keyfactor-pub/terraform-provider-ejbca?style=flat-square" alt="Latest Release"></a>
