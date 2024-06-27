@@ -427,6 +427,10 @@ an End Entity is created in EJBCA which is **not** deleted when the resource is 
 desired, please use the ` + "`ejbca_end_entity`" + ` resource to generate the end entity, and reference the end entity name
 in the ` + "`end_entity_name`" + ` attribute of the ` + "`ejbca_certificate`" + ` resource.
 
+> Deletion of ` + "`ejbca_certificate`" + ` resources always revokes the certificate. Certificate revocation cannot be undone, so this action should be taken with caution.
+
+## End Entity Name Customization
+
 The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for ` + "`" + `end_entity_name` + "`" + `:
 
 * **` + "`" + `cn` + "`" + `:** Uses the Common Name from the CSR's Distinguished Name.
@@ -458,6 +462,10 @@ The EJBCA Certificate resource supports 'automatic' certificate renewal via the 
 	`attribute. If this value is greater than zero and the certificate is known to expire within the number of hours 
 specified by this resource, Terraform plan will mark ` + "`" + "ready_for_renewal" + "` " +
 	` to trigger recreation of the Certificate resource. Then, upon the next apply, the Certificate will be renewed.
+
+> Certificate 'renewal' in this context is different from 'renewal' in [Keyfactor Command](https://www.keyfactor.com/products/command/).
+
+## API Usage
 
 The EJBCA Certificate Resource uses the following EJBCA API endpoints:
 

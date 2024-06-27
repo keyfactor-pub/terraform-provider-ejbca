@@ -2,12 +2,12 @@
 
 ## System Requirements
 
-### To use
-* [Keyfactor EJBCA](https://www.keyfactor.com/products/ejbca-enterprise/) >= v7.7
-* [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-### To build
-* [Git](https://git-scm.com/)
-* [Golang](https://golang.org/) >= v1.19
+* [EJBCA](https://ejbca.org) (>= 7.10)
+* [Terraform](https://www.terraform.io/downloads) (>= 1.0)
+* [Go](https://go.dev/doc/install) (1.22.3)
+* [GNU Make](https://www.gnu.org/software/make/)
+
+> The Terraform Provider for EJBCA uses [Terraform Plugin Protocol version 6](https://developer.hashicorp.com/terraform/plugin/terraform-plugin-protocol) and is only compatible with Terraform 1.0 and later.
 
 ## Installation
 The first step of installing the Keyfactor EJBCA Terraform Provider is to require the provider in your Terraform configuration file.

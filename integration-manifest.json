@@ -1,9 +1,9 @@
 {
   "$schema": "https://keyfactor.github.io/integration-manifest-schema.json",
-  "integration_type": "terraform",
+  "integration_type": "ejbca",
   "name": "EJBCA Terraform Provider",
-  "status": "pilot",
-  "description": "The Terraform provider enables management of EJBCA resources utilizing HashiCorp Terraform.\n\n",
+  "status": "production",
+  "description": "The Terraform provider enables management of EJBCA resources with HashiCorp Terraform.\n\n",
   "support_level": "kf-community",
   "link_github": false,
   "update_catalog": false,

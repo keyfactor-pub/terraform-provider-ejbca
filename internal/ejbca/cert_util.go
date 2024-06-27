@@ -261,25 +261,6 @@ func (c *CertificateContext) ComposeStateFromCertificateResponse(certificate *ej
 		diags.Append(diag...)
 	}
 
-	// Sanity check - validate the leaf cert up to the root
-	rootPool := x509.NewCertPool()
-	rootPool.AddCert(chain[len(chain)-1])
-	intermediatePool := x509.NewCertPool()
-	for _, cert := range chain[:len(chain)-1] {
-		intermediatePool.AddCert(cert)
-	}
-	_, err = leaf.Verify(x509.VerifyOptions{
-		Roots:         rootPool,
-		Intermediates: intermediatePool,
-	})
-	if err != nil {
-		diags.AddError(
-			"Failed to validate certificate chain",
-			fmt.Sprintf("Got error from x509.Verify: %s", err.Error()),
-		)
-		return diags
-	}
-
 	leafPemString := compileCertificatesToPemString(c.ctx, []*x509.Certificate{leaf})
 	chainPemString := compileCertificatesToPemString(c.ctx, chain)
 
