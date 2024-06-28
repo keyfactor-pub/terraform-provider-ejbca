@@ -1,3 +1,19 @@
+/*
+Copyright 2024 Keyfactor
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ejbca
 
 import (
@@ -13,7 +29,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 type certificateTestCase struct {
@@ -22,18 +38,15 @@ type certificateTestCase struct {
 	certificateProfile   string
 	certificateAuthority string
 	endEntityName        string
-	endEntityPassword    string
 }
 
 func TestAccCertificateResource(t *testing.T) {
-
 	t1 := certificateTestCase{
 		certificateSubject:   os.Getenv("EJBCA_CERTIFICATE_SUBJECT"),
 		endEntityProfile:     os.Getenv("EJBCA_END_ENTITY_PROFILE_NAME"),
 		certificateProfile:   os.Getenv("EJBCA_CERTIFICATE_PROFILE_NAME"),
 		certificateAuthority: os.Getenv("EJBCA_CA_NAME"),
 		endEntityName:        "ejbca_terraform_testacc",
-		endEntityPassword:    "password",
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -48,26 +61,28 @@ func TestAccCertificateResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "id"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "issuer_dn"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "chain"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "validity_end_time"),
+					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "validity_start_time"),
 
 					// User input fields
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate_profile_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_profile_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "certificate_authority_name"),
 					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_name"),
-					resource.TestCheckResourceAttrSet("ejbca_certificate.certificate_test", "end_entity_password"),
 				),
 			},
 			// ImportState testing
-			//{
-			//    ResourceName:      "scaffolding_example.test",
-			//    ImportState:       true,
-			//    ImportStateVerify: true,
-			//    // This is not normally necessary, but is here because this
-			//    // example code does not have an actual upstream service.
-			//    // Once the Read method is able to refresh information from
-			//    // the upstream service, this can be removed.
-			//    ImportStateVerifyIgnore: []string{"configurable_attribute"},
-			//},
+			// {
+			//     ResourceName:      "scaffolding_example.test",
+			//     ImportState:       true,
+			//     ImportStateVerify: true,
+			//     // This is not normally necessary, but is here because this
+			//     // example code does not have an actual upstream service.
+			//     // Once the Read method is able to refresh information from
+			//     // the upstream service, this can be removed.
+			//     ImportStateVerifyIgnore: []string{"configurable_attribute"},
+			// },
 			// Certificate has no update method
 			// Delete testing automatically occurs in TestCase
 		},
@@ -81,6 +96,10 @@ func testAccEjbcaCertificate(tc certificateTestCase) string {
 	}
 
 	return fmt.Sprintf(`
+provider "ejbca" {
+    cert_auth {}
+}
+
 resource "ejbca_certificate" "certificate_test" {
   certificate_signing_request = <<EOT
 %s
@@ -89,15 +108,15 @@ EOT
   end_entity_profile_name = "%s"
   certificate_authority_name = "%s"
   end_entity_name = "%s"
-  end_entity_password = "%s"
+  early_renewal_hours = 36
 }
-`, csr, tc.certificateProfile, tc.endEntityProfile, tc.certificateAuthority, tc.endEntityName, tc.endEntityPassword)
+`, csr, tc.certificateProfile, tc.endEntityProfile, tc.certificateAuthority, tc.endEntityName)
 }
 
 func generateCSR(subject string) ([]byte, error) {
 	keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
 
-	subj, err := parseSubjectDN(subject, false)
+	subj, err := parseSubjectDN(subject, true)
 	if err != nil {
 		return make([]byte, 0), err
 	}
@@ -149,7 +168,11 @@ func parseSubjectDN(subject string, randomizeCn bool) (pkix.Name, error) {
 			name.OrganizationalUnit = []string{value}
 		case "CN":
 			if randomizeCn {
-				name.CommonName = fmt.Sprintf("%s-%s", value, generateRandomString(5))
+				cn, err := generateRandomString(5)
+				if err != nil {
+					return pkix.Name{}, err
+				}
+				name.CommonName = fmt.Sprintf("%s-%s", value, cn)
 			} else {
 				name.CommonName = value
 			}

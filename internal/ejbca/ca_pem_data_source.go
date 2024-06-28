@@ -1,8 +1,25 @@
+/*
+Copyright 2024 Keyfactor
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ejbca
 
 import (
 	"context"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,14 +38,14 @@ type CaPemDataSource struct {
 	client *ejbca.APIClient
 }
 
-func (d *CaPemDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *CaPemDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_ca_pem"
 }
 
 type CaPemDataSourceModel struct {
 	Dn    types.String `tfsdk:"dn"`
 	CaPem types.String `tfsdk:"ca_pem"`
-	Id    types.String `tfsdk:"id"`
+	ID    types.String `tfsdk:"id"`
 }
 
 func (d *CaPemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -52,8 +69,7 @@ func (d *CaPemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 	}
 }
 
-func (d *CaPemDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
+func (d *CaPemDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -71,26 +87,27 @@ func (d *CaPemDataSource) Configure(ctx context.Context, req datasource.Configur
 }
 
 func (d *CaPemDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state CaPemDataSourceModel
+	if d.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	// Read Terraform configuration data into the model
+	var state CaPemDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Download the CA PEM
-	chain, err := CreateCertificateContext(ctx, d.client).DownloadCaChain(state.Dn.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to retrieve CA PEM for CA with DN "+state.Dn.ValueString(),
-			fmt.Sprintf("Got error: %s", err.Error()),
-		)
+	chain, diags := CreateCertificateContext(ctx, d.client).DownloadCAChain(state.Dn.ValueString())
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	state.CaPem = types.StringValue(compileCertificatesToPemString(ctx, chain))
-	state.Id = types.StringValue(fmt.Sprintf("%X", chain[0].SerialNumber))
+	state.ID = types.StringValue(fmt.Sprintf("%X", chain[0].SerialNumber))
 
 	tflog.Debug(ctx, "Retrieved CA PEM for CA with DN "+state.Dn.ValueString())
 
