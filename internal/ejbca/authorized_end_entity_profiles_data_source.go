@@ -1,9 +1,26 @@
+/*
+Copyright 2024 Keyfactor
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ejbca
 
 import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -22,14 +39,14 @@ type AuthorizedEndEntityProfilesDataSource struct {
 	client *ejbca.APIClient
 }
 
-func (d *AuthorizedEndEntityProfilesDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *AuthorizedEndEntityProfilesDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_authorized_end_entity_profiles"
 }
 
 // AuthorizedEndEntityProfilesDataSourceModel describes the data source data model.
 type AuthorizedEndEntityProfilesDataSourceModel struct {
 	AuthorizedEndEntityProfiles types.Set   `tfsdk:"authorized_end_entity_profiles"`
-	Id                          types.Int64 `tfsdk:"id"`
+	ID                          types.Int64 `tfsdk:"id"`
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -50,8 +67,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Schema(_ context.Context, _ data
 	}
 }
 
-func (d *AuthorizedEndEntityProfilesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
+func (d *AuthorizedEndEntityProfilesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -70,16 +86,19 @@ func (d *AuthorizedEndEntityProfilesDataSource) Configure(ctx context.Context, r
 }
 
 func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state AuthorizedEndEntityProfilesDataSourceModel
+	if d.client == nil {
+		return
+	}
 
 	// Read Terraform configuration data into the model
+	var state AuthorizedEndEntityProfilesDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Get the list of authorized end entity profiles for the current user.
-	authorizedEndEntityProfiles, _, err := d.client.V2EndentityApi.GetAuthorizedEndEntityProfiles(ctx).Execute()
+	authorizedEndEntityProfiles, httpResponse, err := d.client.V2EndentityApi.GetAuthorizedEndEntityProfiles(ctx).Execute()
 	if err != nil {
 		tflog.Error(ctx, "Failed to get list of authorized end entity profiles: "+err.Error())
 
@@ -95,6 +114,9 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 			fmt.Sprintf("EJBCA API returned error %s (%s)", detail, err.Error()),
 		)
 		return
+	}
+	if httpResponse != nil && httpResponse.Body != nil {
+		httpResponse.Body.Close()
 	}
 
 	// Create list of strings from the authorized end entity profile names
@@ -117,7 +139,7 @@ func (d *AuthorizedEndEntityProfilesDataSource) Read(ctx context.Context, req da
 		return
 	}
 
-	state.Id = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
+	state.ID = types.Int64Value(int64(len(authorizedEndEntityProfilesList)))
 
 	tflog.Trace(ctx, "Retrieved list of authorized end entity profiles.")
 

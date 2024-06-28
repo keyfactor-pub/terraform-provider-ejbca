@@ -23,5 +23,6 @@ resource "ejbca_certificate" "Certificate" {
   end_entity_profile_name     = "endEntityProfileName"
   certificate_authority_name  = "ManagementCA"
   end_entity_name             = "ejbca_tf_demo"
-  end_entity_password         = "password"
+  account_binding_id          = "abc123"
+  early_renewal_hours         = 36
 }

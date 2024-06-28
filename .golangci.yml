@@ -1,27 +1,31 @@
-# Visit https://golangci-lint.run/ for usage documentation
-# and information on other useful linters
-issues:
-  max-per-linter: 0
-  max-same-issues: 0
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 12m
+
+  skip-dirs:
+    - testdata$
+    - test/mock
+
+  skip-files:
+    - ".*\\.pb\\.go"
 
 linters:
-  disable-all: true
   enable:
+    - bodyclose
     - durationcheck
-    - errcheck
-    - exportloopref
-    - forcetypeassert
-    - godot
-    - gofmt
-    - gosimple
-    - ineffassign
-    - makezero
+    - errorlint
+    - goimports
+    - revive
+    - gosec
     - misspell
-    - nilerr
-    - predeclared
-    - staticcheck
-    - tenv
+    - nakedret
     - unconvert
     - unparam
-    - unused
-    - vet
+    - whitespace
+    - gocritic
+    - nolintlint
+
+linters-settings:
+  revive:
+    # minimal confidence for issues, default is 0.8
+    confidence: 0.0

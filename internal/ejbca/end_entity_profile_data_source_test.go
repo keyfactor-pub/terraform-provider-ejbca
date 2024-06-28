@@ -1,18 +1,32 @@
+/*
+Copyright 2024 Keyfactor
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ejbca
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccEndEntityProfileDataSource(t *testing.T) {
-
-	eep, err := getRandomAuthorizedEEP()
-	if err != nil {
-		t.Fatal(err)
+	config := getAccTestConfig(t)
+	if !config.isEnterprise {
+		t.Skip("Skipping End Entity Profile Data Source Test since connected instance was not flagged as Enterprise")
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -21,9 +35,9 @@ func TestAccEndEntityProfileDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: testAccEEPDataSourceConfig(eep),
+				Config: testAccEEPDataSourceConfig(config.endEntityProfileName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.ejbca_end_entity_profile.test", "id", eep),
+					resource.TestCheckResourceAttr("data.ejbca_end_entity_profile.test", "id", config.endEntityProfileName),
 					resource.TestCheckResourceAttrSet("data.ejbca_end_entity_profile.test", "subject_distinguished_name_fields.#"),
 					resource.TestCheckResourceAttrSet("data.ejbca_end_entity_profile.test", "subject_alternative_name_fields.#"),
 					resource.TestCheckResourceAttrSet("data.ejbca_end_entity_profile.test", "available_certificate_profiles.#"),
@@ -36,26 +50,12 @@ func TestAccEndEntityProfileDataSource(t *testing.T) {
 
 func testAccEEPDataSourceConfig(name string) string {
 	return fmt.Sprintf(`
-    data "ejbca_end_entity_profile" "test" {
-        end_entity_profile_name = "%s"
-    }
-    `, name)
+provider "ejbca" {
+    cert_auth {}
 }
 
-func getRandomAuthorizedEEP() (string, error) {
-	client, err := createEjbcaClient()
-	if err != nil {
-		return "", err
-	}
-
-	authorizedEeps, _, err := client.V2EndentityApi.GetAuthorizedEndEntityProfiles(context.Background()).Execute()
-	if err != nil {
-		return "", err
-	}
-
-	for _, profile := range authorizedEeps.GetEndEntitieProfiles() {
-		return profile.GetName(), nil
-	}
-
-	return "", fmt.Errorf("no authorized EEP found")
+data "ejbca_end_entity_profile" "test" {
+    end_entity_profile_name = "%s"
+}
+    `, name)
 }

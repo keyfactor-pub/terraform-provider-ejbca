@@ -8,7 +8,23 @@ description: |-
   an End Entity is created in EJBCA which is not deleted when the resource is destroyed. If this is behavior that is
   desired, please use the ejbca_end_entity resource to generate the end entity, and reference the end entity name
   in the end_entity_name attribute of the ejbca_certificate resource.
-  EJBCA API Usage
+  Deletion of ejbca_certificate resources always revokes the certificate. Certificate revocation cannot be undone, so this action should be taken with caution.
+  End Entity Name Customization
+  The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for end_entity_name:
+  cn: Uses the Common Name from the CSR's Distinguished Name.dns: Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).uri: Uses the first URI from the CSR's Subject Alternative Names (SANs).ip: Uses the first IP Address from the CSR's Subject Alternative Names (SANs).Custom Value: Any other string will be directly used as the End Entity Name.
+  If the end_entity_name field is not explicitly set, the EJBCA Terraform Provider will attempt to determine the End Entity Name using the following default behavior:
+  First, it will try to use the Common Name: It looks at the Common Name from the CSR's Distinguished Name.If the Common Name is not available, it will use the first DNS Name: It looks at the first DNS Name from the CSR's Subject Alternative Names (SANs).If the DNS Name is not available, it will use the first URI: It looks at the first URI from the CSR's Subject Alternative Names (SANs).If the URI is not available, it will use the first IP Address: It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).**If none of the above are available, it will return an error.
+  Revocation
+  The EJBCA Certificate resource tracks certificate revocation to ensure that instantiated certificates
+  are up-to-date and also match the state of the EJBCA issuing CA. If a certificate represented by a Certificate resource
+  is revoked in EJBCA, Terraform plan will mark the certificate as revoked and force recreation upon the next apply.
+  If the certificate is revoked in EJBCA by means other than Terraform, destroy will detect this and return with awarning.
+  Automatic Certificate Renewal
+  The EJBCA Certificate resource supports 'automatic' certificate renewal via the early_renewal_hours attribute. If this value is greater than zero and the certificate is known to expire within the number of hours
+  specified by this resource, Terraform plan will mark ready_for_renewal  to trigger recreation of the Certificate resource. Then, upon the next apply, the Certificate will be renewed.
+  Certificate 'renewal' in this context is different from 'renewal' in Keyfactor Command.
+  API Usage
+  The EJBCA Certificate Resource uses the following EJBCA API endpoints:
   POST /v1/certificate/pkcs10enroll - Used to enroll a certificate with a PKCS#10 Certificate Signing RequestPOST /v1/certificate/search - Used to search for a certificate by serial numberGET /v1/ca/{subject_dn}/certificate/download - Used to download the CA certificate chain if it was not provided in the response from /v1/certificate/searchPUT /v1/certificate/{issuer_dn}/{certificate_serial_number}/revoke - Used to revoke a certificate
 ---
 
@@ -20,7 +36,46 @@ an End Entity is created in EJBCA which is **not** deleted when the resource is 
 desired, please use the `ejbca_end_entity` resource to generate the end entity, and reference the end entity name
 in the `end_entity_name` attribute of the `ejbca_certificate` resource.
 
-## EJBCA API Usage
+> Deletion of `ejbca_certificate` resources always revokes the certificate. Certificate revocation cannot be undone, so this action should be taken with caution.
+
+## End Entity Name Customization
+
+The EJBCA Certificate Resource allows users to determine how the End Entity Name is selected at runtime. Here are the options you can use for `end_entity_name`:
+
+* **`cn`:** Uses the Common Name from the CSR's Distinguished Name.
+* **`dns`:** Uses the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **`uri`:** Uses the first URI from the CSR's Subject Alternative Names (SANs).
+* **`ip`:** Uses the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **Custom Value:** Any other string will be directly used as the End Entity Name.
+
+If the `end_entity_name` field is not explicitly set, the EJBCA Terraform Provider will attempt to determine the End Entity Name using the following default behavior:
+
+* **First, it will try to use the Common Name:** It looks at the Common Name from the CSR's Distinguished Name.
+* **If the Common Name is not available, it will use the first DNS Name:** It looks at the first DNS Name from the CSR's Subject Alternative Names (SANs).
+* **If the DNS Name is not available, it will use the first URI:** It looks at the first URI from the CSR's Subject Alternative Names (SANs).
+* **If the URI is not available, it will use the first IP Address:** It looks at the first IP Address from the CSR's Subject Alternative Names (SANs).
+* **If none of the above are available, it will return an error.
+
+## Revocation
+
+The EJBCA Certificate resource tracks certificate revocation to ensure that instantiated certificates
+are up-to-date and also match the state of the EJBCA issuing CA. If a certificate represented by a Certificate resource
+is revoked in EJBCA, Terraform plan will mark the certificate as revoked and force recreation upon the next apply.
+
+> If the certificate is revoked in EJBCA by means other than Terraform, destroy will detect this and return with a 
+warning.
+
+## Automatic Certificate Renewal
+
+The EJBCA Certificate resource supports 'automatic' certificate renewal via the `early_renewal_hours` attribute. If this value is greater than zero and the certificate is known to expire within the number of hours 
+specified by this resource, Terraform plan will mark `ready_for_renewal`  to trigger recreation of the Certificate resource. Then, upon the next apply, the Certificate will be renewed.
+
+> Certificate 'renewal' in this context is different from 'renewal' in [Keyfactor Command](https://www.keyfactor.com/products/command/).
+
+## API Usage
+
+The EJBCA Certificate Resource uses the following EJBCA API endpoints:
+
 * `POST /v1/certificate/pkcs10enroll` - Used to enroll a certificate with a PKCS#10 Certificate Signing Request
 * `POST /v1/certificate/search` - Used to search for a certificate by serial number
 * `GET /v1/ca/{subject_dn}/certificate/download` - Used to download the CA certificate chain if it was not provided in the response from `/v1/certificate/search`
@@ -54,7 +109,8 @@ resource "ejbca_certificate" "Certificate" {
   end_entity_profile_name     = "endEntityProfileName"
   certificate_authority_name  = "ManagementCA"
   end_entity_name             = "ejbca_tf_demo"
-  end_entity_password         = "password"
+  account_binding_id          = "abc123"
+  early_renewal_hours         = 36
 }
 ```
 
@@ -64,14 +120,23 @@ resource "ejbca_certificate" "Certificate" {
 ### Required
 
 - `certificate_authority_name` (String) EJBCA Certificate Authority Name used to sign the certificate
-- `certificate_profile_name` (String) EJBCA Certificate Profile Name to use for the certificate
-- `certificate_signing_request` (String) PKCS#10 Certificate Signing Request
-- `end_entity_name` (String) Name of the EJBCA entity to create for the certificate
-- `end_entity_password` (String) Password of the EJBCA entity
+- `certificate_profile_name` (String) EJBCA Certificate Profile Name to use for the certificate. Profile must exist in the connected EJBCA instance, and it must correspond to the format of the certificate_signing_request.
+- `certificate_signing_request` (String) PKCS#10 PEM-encoded Certificate Signing Request
 - `end_entity_profile_name` (String) EJBCA End Entity Profile Name to use for the certificate
+
+### Optional
+
+- `account_binding_id` (String) An account binding ID in EJBCA to associate with issued certificates.
+- `early_renewal_hours` (Number) The resource will consider the certificate to have expired the given number of hours before its actual expiry time. This can be useful to renew the certificate in advance of the expiration of the current certificate. The advance update can only be performed if the resource is applied within the early renewal period. (default: `0`)
+- `end_entity_name` (String) Name of the EJBCA entity to create for the certificate
 
 ### Read-Only
 
-- `certificate` (String) PEM encoded X509v3 certificate and chain
+- `certificate` (String) PEM encoded X509v3 leaf certificate
+- `chain` (String) The PEM encoded X509v3 certificate chain up to the root CA.
 - `id` (String) Serial number of the certificate
+- `is_revoked` (Boolean) Was the certificate revoked by the issuing CA?
 - `issuer_dn` (String) Distinguished name of the certificate issuer
+- `ready_for_renewal` (Boolean) Is the certificate either expired (i.e. beyond the `validity_period_hours`) or ready for an early renewal (i.e. within the `early_renewal_hours`)?
+- `validity_end_time` (String) The time until which the certificate is invalid, expressed as an [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamp.
+- `validity_start_time` (String) The time after which the certificate is valid, expressed as an [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamp.

@@ -1,8 +1,25 @@
+/*
+Copyright 2024 Keyfactor
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ejbca
 
 import (
 	"context"
 	"fmt"
+
 	"github.com/Keyfactor/ejbca-go-client-sdk/api/ejbca"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -16,6 +33,7 @@ import (
 // Ensure ejbca defined types fully satisfy framework interfaces.
 var _ resource.Resource = &EndEntityResource{}
 var _ resource.ResourceWithImportState = &EndEntityResource{}
+var _ resource.ResourceWithConfigure = &EndEntityResource{}
 
 func NewEndEntityResource() resource.Resource {
 	return &EndEntityResource{}
@@ -27,7 +45,7 @@ type EndEntityResource struct {
 }
 
 type EndEntityResourceModel struct {
-	Id                     types.String `tfsdk:"id"`
+	ID                     types.String `tfsdk:"id"`
 	EndEntityName          types.String `tfsdk:"end_entity_name"`
 	EndEntityPassword      types.String `tfsdk:"end_entity_password"` // Not returned
 	SubjectDn              types.String `tfsdk:"subject_dn"`
@@ -37,7 +55,7 @@ type EndEntityResourceModel struct {
 	CertificateProfileName types.String `tfsdk:"certificate_profile_name"` // Not returned
 	EndEntityProfileName   types.String `tfsdk:"end_entity_profile_name"`  // Not returned
 	Token                  types.String `tfsdk:"token"`
-	AccountBindingId       types.String `tfsdk:"account_binding_id"` // Not returned
+	AccountBindingID       types.String `tfsdk:"account_binding_id"` // Not returned
 	Status                 types.String `tfsdk:"status"`
 	// TODO extension_data
 }
@@ -137,7 +155,6 @@ func (r *EndEntityResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 }
 
 func (r *EndEntityResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the ejbca has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -156,11 +173,15 @@ func (r *EndEntityResource) Configure(_ context.Context, req resource.ConfigureR
 }
 
 func (r *EndEntityResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Create called on EndEntityResource resource")
 
 	// Read Terraform plan state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -177,11 +198,15 @@ func (r *EndEntityResource) Create(ctx context.Context, req resource.CreateReque
 }
 
 func (r *EndEntityResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Read called on EndEntityResource resource")
 
 	// Read Terraform state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -206,11 +231,15 @@ func (r *EndEntityResource) Update(_ context.Context, _ resource.UpdateRequest, 
 }
 
 func (r *EndEntityResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state EndEntityResourceModel
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured EJBCA client", "The EJBCA client is not configured. Please report this issue to the ejbca developers.")
+		return
+	}
 
 	tflog.Info(ctx, "Delete called on EndEntityResource resource")
 
 	// Read Terraform state into the model
+	var state EndEntityResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
