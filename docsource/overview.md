@@ -3,7 +3,7 @@ The Terraform provider for EJBCA enables management of EJBCA resources with Hash
 
 The [Terraform](https://www.terraform.io/) provider for [EJBCA](https://ejbca.org) proviedes utilities for requesting and managaing X509v3 certificates from a connected EJBCA.
 
-# System Requirements
+# Requirements
 
 * [EJBCA](https://ejbca.org) (>= 7.10)
 * [Terraform](https://www.terraform.io/downloads) (>= 1.0)

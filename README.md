@@ -51,7 +51,7 @@ In the [Keyfactor Community](https://www.keyfactor.com/community/), we welcome c
 
 > Commercial support is available for [EJBCA Enterprise](https://www.keyfactor.com/products/ejbca-enterprise/) customers, who may request escalation by opening up a support ticket through their Keyfactor representative.
 
-## System Requirements
+## Requirements
 
 * [EJBCA](https://ejbca.org) (>= 7.10)
 * [Terraform](https://www.terraform.io/downloads) (>= 1.0)
